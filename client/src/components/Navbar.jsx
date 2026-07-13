@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, Menu, X, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -21,10 +22,10 @@ export default function Navbar() {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar-container container">
-        <a href="#" className="navbar-logo">
+        <Link to="/" className="navbar-logo">
           <Shield className="logo-icon" size={26} />
           <span className="logo-text">Attend<span className="text-accent">AI</span></span>
-        </a>
+        </Link>
 
         {/* Desktop Menu */}
         <div className="navbar-menu-desktop">
@@ -37,9 +38,9 @@ export default function Navbar() {
         </div>
 
         <div className="navbar-actions-desktop">
-          <a href="#contact" className="btn btn-primary nav-btn">
-            Get Started <ArrowRight size={16} />
-          </a>
+          <Link to="/login" className="btn btn-primary nav-btn">
+            Login Portal <ArrowRight size={16} />
+          </Link>
         </div>
 
         {/* Mobile Toggle */}
@@ -56,9 +57,9 @@ export default function Navbar() {
         <a href="#dashboard" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Portal Preview</a>
         <a href="#pricing" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Pricing</a>
         <a href="#contact" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Contact</a>
-        <a href="#contact" className="btn btn-primary mobile-nav-btn" onClick={() => setIsOpen(false)}>
-          Get Started <ArrowRight size={16} />
-        </a>
+        <Link to="/login" className="btn btn-primary mobile-nav-btn" onClick={() => setIsOpen(false)}>
+          Login Portal <ArrowRight size={16} />
+        </Link>
       </div>
     </nav>
   );
