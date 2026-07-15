@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Mail, Loader2, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import api from '../services/api';
+import { FiMail, FiArrowLeft, FiKey } from 'react-icons/fi';
 
-export default function ForgotPassword() {
-  const navigate = useNavigate();
+const ForgotPassword = () => {
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const { sendResetEmail } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,63 +18,100 @@ export default function ForgotPassword() {
       return toast.error('Please enter your email');
     }
 
-    setIsLoading(true);
+    setLoading(true);
     try {
-      const res = await api.post('/auth/forgot-password', { email });
-      setIsLoading(false);
-      toast.success(res.data.message || 'Reset link sent successfully!');
-      navigate('/login');
-    } catch (err) {
-      setIsLoading(false);
-      toast.error(err.response?.data?.message || 'Something went wrong');
+      const result = await sendResetEmail(email);
+      if (result.success) {
+        toast.success('Password reset email sent! Check your inbox for instructions.');
+        setResetToken('firebase-email-sent'); // Simulates a token to show the next screen step
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#0b0f19] px-4 py-12 text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.07)_0,transparent_60%)] pointer-events-none" />
-
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl shadow-2xl"
+    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md"
       >
-        <Link to="/login" className="inline-flex items-center text-xs text-gray-400 hover:text-white mb-6">
-          <ArrowLeft size={14} className="mr-1" /> Back to Login
-        </Link>
-
         <div className="mb-6">
-          <h2 className="text-xl font-bold tracking-tight">Reset Password</h2>
-          <p className="text-sm text-gray-400 mt-1">
-            Enter your registered email and we'll send reset instructions.
-          </p>
+          <Link to="/login" className="inline-flex items-center space-x-1.5 text-sm font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
+            <FiArrowLeft />
+            <span>Back to Login</span>
+          </Link>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3.5 h-4 w-4 text-gray-500" />
-              <input
-                type="email"
-                placeholder="you@college.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm outline-none transition-all placeholder:text-gray-500 focus:border-primary-500 focus:bg-white/10"
-              />
-            </div>
-          </div>
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Forgot Password</h2>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1.5">Recover your account password</p>
+        </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="flex w-full items-center justify-center rounded-lg bg-primary-600 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-600/20 transition-all hover:bg-primary-700 focus:outline-none disabled:opacity-50"
-          >
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Send Reset Link'}
-          </button>
-        </form>
+        <div className="glass-card p-8">
+          {!resetToken ? (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Address</label>
+                <div className="relative">
+                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <input
+                    type="email"
+                    placeholder="name@college.edu"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="glass-input w-full pl-11"
+                    required
+                  />
+                </div>
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
+              >
+                {loading ? 'Sending Request...' : 'Generate Reset Token'}
+              </motion.button>
+            </form>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6 text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mx-auto flex items-center justify-center">
+                <FiKey className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Reset Token Generated</h3>
+                <p className="text-sm text-slate-550 dark:text-slate-400 mt-2">
+                  In a real production environment, this token is sent to your registered email address. For this self-contained demo, please copy the code below.
+                </p>
+              </div>
+              <div className="p-3 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl select-all font-mono text-sm font-bold text-slate-700 dark:text-slate-300">
+                {resetToken}
+              </div>
+              <Link
+                to={`/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`}
+                className="w-full inline-block py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-sm shadow-lg shadow-primary-500/20 text-center"
+              >
+                Proceed to Reset Password
+              </Link>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
     </div>
   );
-}
+};
+
+export default ForgotPassword;

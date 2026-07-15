@@ -1,81 +1,121 @@
-import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
+import React from 'react';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { useAuth, AuthProvider } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
+import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+
+// Pages
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
+import ScanQR from './pages/ScanQR';
+import AttendanceHistory from './pages/AttendanceHistory';
+import DeviceStatus from './pages/DeviceStatus';
+import ManageSubjects from './pages/ManageSubjects';
+import StartSession from './pages/StartSession';
+import DeviceRequests from './pages/DeviceRequests';
+import Reports from './pages/Reports';
+import ManageTeachers from './pages/ManageTeachers';
+import ManageStudents from './pages/ManageStudents';
 
-export default function App() {
-  // Global interactive cursor glow coordinate listener
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      const x = e.clientX;
-      const y = e.clientY;
-      document.documentElement.style.setProperty('--mouse-x', `${x}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${y}px`);
-    };
+// Route decider for dashboard based on user role
+const DashboardRouter = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <AdminDashboard />;
+  if (user?.role === 'teacher') return <TeacherDashboard />;
+  return <StudentDashboard />;
+};
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+// Route wrapper to secure access
+const ProtectedLayout = ({ allowedRoles }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="w-10 h-10 rounded-full border-4 border-primary-500 border-t-transparent animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Navbar />
+      <div className="flex flex-1 flex-col md:flex-row">
+        <Sidebar />
+        <main className="flex-1 bg-slate-50/50 dark:bg-slate-950/20 overflow-x-hidden">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};
+
+function AppRoutes() {
+  const { user } = useAuth();
 
   return (
     <>
-      {/* Global Spotlight Glow (Mouse Follow) */}
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 1,
-          pointerEvents: 'none',
-          background: `radial-gradient(circle 450px at var(--mouse-x, -500px) var(--mouse-y, -500px), rgba(99, 102, 241, 0.05), transparent 80%)`
-        }}
-      />
-
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" replace />} />
+        <Route path="/register" element={!user ? <Register /> : <Navigate to="/dashboard" replace />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Protected Student Dashboard */}
-        <Route 
-          path="/student/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['student']}>
-              <StudentDashboard />
-            </ProtectedRoute>
-          } 
-        />
+        {/* Protected Shared Layout Routes */}
+        <Route element={<ProtectedLayout />}>
+          <Route path="/dashboard" element={<DashboardRouter />} />
+          <Route path="/history" element={<AttendanceHistory />} />
+          <Route path="/subjects" element={<ManageSubjects />} />
+        </Route>
 
-        {/* Protected Teacher Dashboard */}
-        <Route 
-          path="/teacher/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['teacher']}>
-              <TeacherDashboard />
-            </ProtectedRoute>
-          } 
-        />
+        {/* Student Specific Routes */}
+        <Route element={<ProtectedLayout allowedRoles={['student']} />}>
+          <Route path="/scan" element={<ScanQR />} />
+          <Route path="/device-status" element={<DeviceStatus />} />
+        </Route>
 
-        {/* Protected Admin Dashboard */}
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
-        />
+        {/* Teacher/Admin Specific Routes */}
+        <Route element={<ProtectedLayout allowedRoles={['teacher', 'admin']} />}>
+          <Route path="/start-session" element={<StartSession />} />
+          <Route path="/device-requests" element={<DeviceRequests />} />
+          <Route path="/reports" element={<Reports />} />
+        </Route>
+
+        {/* Admin Specific Routes */}
+        <Route element={<ProtectedLayout allowedRoles={['admin']} />}>
+          <Route path="/manage-teachers" element={<ManageTeachers />} />
+          <Route path="/manage-students" element={<ManageStudents />} />
+        </Route>
+
+        {/* Fallbacks */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </>
   );
 }
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  );
+}
+
+export default App;

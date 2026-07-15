@@ -1,66 +1,58 @@
-import { useState, useEffect } from 'react';
-import { Shield, Menu, X, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import './Navbar.css';
+import React from 'react';
+import { useAuth } from '../context/AuthContext';
+import { FiLogOut, FiUser, FiSmartphone } from 'react-icons/fi';
+import DarkModeToggle from './DarkModeToggle';
+import { motion } from 'framer-motion';
 
-export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+const Navbar = () => {
+  const { user, logout } = useAuth();
 
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
-      <div className="navbar-container container">
-        <Link to="/" className="navbar-logo">
-          <Shield className="logo-icon" size={26} />
-          <span className="logo-text">Attend<span className="text-accent">AI</span></span>
-        </Link>
-
-        {/* Desktop Menu */}
-        <div className="navbar-menu-desktop">
-          <a href="#problems" className="nav-link">Challenges</a>
-          <a href="#solution" className="nav-link">How it Works</a>
-          <a href="#features" className="nav-link">Features</a>
-          <a href="#dashboard" className="nav-link">Portal Preview</a>
-          <a href="#pricing" className="nav-link">Pricing</a>
-          <a href="#contact" className="nav-link">Contact</a>
+    <header className="glass-nav sticky top-0 z-40 w-full px-6 py-4 flex items-center justify-between">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary-500/20">
+          S
         </div>
-
-        <div className="navbar-actions-desktop">
-          <Link to="/login" className="btn btn-primary nav-btn">
-            Login Portal <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        {/* Mobile Toggle */}
-        <button className="navbar-toggle" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle Menu">
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <span className="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-350 tracking-tight">
+          SmartAttend
+        </span>
       </div>
 
-      {/* Mobile Menu */}
-      <div className={`navbar-menu-mobile ${isOpen ? 'active' : ''}`}>
-        <a href="#problems" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Challenges</a>
-        <a href="#solution" className="mobile-nav-link" onClick={() => setIsOpen(false)}>How it Works</a>
-        <a href="#features" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Features</a>
-        <a href="#dashboard" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Portal Preview</a>
-        <a href="#pricing" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Pricing</a>
-        <a href="#contact" className="mobile-nav-link" onClick={() => setIsOpen(false)}>Contact</a>
-        <Link to="/login" className="btn btn-primary mobile-nav-btn" onClick={() => setIsOpen(false)}>
-          Login Portal <ArrowRight size={16} />
-        </Link>
+      <div className="flex items-center space-x-4">
+        {user && (
+          <div className="flex items-center space-x-3 pr-2 border-r border-slate-200 dark:border-slate-800">
+            {user.role === 'student' && (
+              <div className="hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400">
+                <FiSmartphone className="w-3.5 h-3.5" />
+                <span>{user.deviceApproved ? 'Device Linked' : 'Device Unapproved'}</span>
+              </div>
+            )}
+            <div className="text-right">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{user.name}</p>
+              <p className="text-xs font-medium text-slate-500 capitalize">{user.role}</p>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+              <FiUser className="w-5 h-5" />
+            </div>
+          </div>
+        )}
+
+        <DarkModeToggle />
+
+        {user && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={logout}
+            className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm shadow-lg shadow-red-500/15 transition-all"
+          >
+            <FiLogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Logout</span>
+          </motion.button>
+        )}
       </div>
-    </nav>
+    </header>
   );
-}
+};
+
+export default Navbar;

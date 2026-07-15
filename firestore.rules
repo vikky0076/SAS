@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper: Check if user document exists in admins collection
+    function isAdmin() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    // Helper: Check if user document exists in teachers collection
+    function isTeacher() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+    }
+    
+    // Helper: Check if user document exists in students collection
+    function isStudent() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/students/$(request.auth.uid));
+    }
+
+    // Students Collection
+    match /students/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isTeacher() || isAdmin());
+      // Allow initial document creation by the authenticated user itself
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isAdmin() || (isStudent() && request.auth.uid == uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Teachers Collection
+    match /teachers/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isAdmin() || (isTeacher() && request.auth.uid == uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Admins Collection
+    match /admins/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Subjects Collection
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isTeacher();
+    }
+    
+    // Attendance Sessions Collection
+    match /attendanceSessions/{sessionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isTeacher();
+    }
+    
+    // Attendance Records Collection
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && resource.data.student._id == request.auth.uid));
+      allow create: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && request.resource.data.student._id == request.auth.uid));
+      allow update, delete: if isAuthenticated() && (isAdmin() || isTeacher());
+    }
+    
+    // Device Requests Collection
+    match /deviceRequests/{requestId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && resource.data.student._id == request.auth.uid));
+      allow create: if isAuthenticated() && (isAdmin() || (isStudent() && request.resource.data.student._id == request.auth.uid));
+      allow update, delete: if isAuthenticated() && (isAdmin() || isTeacher());
+    }
+    
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      allow read, write: if isAuthenticated() && (isAdmin() || isTeacher());
+    }
+  }
+}
