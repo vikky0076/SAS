@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -7,7 +8,8 @@ import {
   sendPasswordResetEmail,
   confirmPasswordReset,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  getAuth
 } from 'firebase/auth';
 import { 
   doc, 
@@ -30,9 +32,24 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mentors, setMentors] = useState([]);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
   });
+
+  const fetchMentors = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'mentors'));
+      const list = snap.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
+      setMentors(list);
+    } catch (error) {
+      console.error('Error fetching mentors:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMentors();
+  }, [user]);
 
   // Base API configuration (kept for compatibility/logging, but not used for REST API requests)
   const API_URL = 'http://localhost:5000/api';
@@ -60,7 +77,14 @@ export const AuthProvider = ({ children }) => {
           const studentRef = doc(db, 'students', uid);
           const studentSnap = await getDoc(studentRef);
           if (studentSnap.exists()) {
-            userData = { _id: uid, ...studentSnap.data() };
+            const studentData = studentSnap.data();
+            if (!studentData.passwordPrivacy) {
+              await signOut(auth);
+              setUser(null);
+              setLoading(false);
+              return;
+            }
+            userData = { _id: uid, ...studentData };
             
             // Handle student trusted device validation on login state recovery
             const localToken = getOrGenerateDeviceToken();
@@ -90,6 +114,20 @@ export const AuthProvider = ({ children }) => {
             const teacherSnap = await getDoc(teacherRef);
             if (teacherSnap.exists()) {
               userData = { _id: uid, ...teacherSnap.data() };
+              
+              // Ensure mentor profile exists
+              const mentorRef = doc(db, 'mentors', uid);
+              const mentorSnap = await getDoc(mentorRef);
+              if (!mentorSnap.exists()) {
+                await setDoc(mentorRef, {
+                  name: userData.name,
+                  email: userData.email,
+                  department: userData.department,
+                  role: 'mentor',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                });
+              }
             }
           }
 
@@ -99,6 +137,20 @@ export const AuthProvider = ({ children }) => {
             const adminSnap = await getDoc(adminRef);
             if (adminSnap.exists()) {
               userData = { _id: uid, ...adminSnap.data() };
+              
+              // Ensure mentor profile exists for admin
+              const mentorRef = doc(db, 'mentors', uid);
+              const mentorSnap = await getDoc(mentorRef);
+              if (!mentorSnap.exists()) {
+                await setDoc(mentorRef, {
+                  name: userData.name,
+                  email: userData.email,
+                  department: userData.department || 'Admin',
+                  role: 'mentor',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                });
+              }
             }
           }
 
@@ -182,8 +234,12 @@ export const AuthProvider = ({ children }) => {
       const studentRef = doc(db, 'students', uid);
       const studentSnap = await getDoc(studentRef);
       if (studentSnap.exists()) {
-        isStudentRole = true;
         const studentData = studentSnap.data();
+        if (!studentData.passwordPrivacy) {
+          await signOut(auth);
+          throw new Error('Your login is pending approval. Please ask your mentor or admin to register your details and set the password privacy button.');
+        }
+        isStudentRole = true;
         loggedUser = { _id: uid, ...studentData };
 
         const localDeviceToken = getOrGenerateDeviceToken();
@@ -279,7 +335,7 @@ export const AuthProvider = ({ children }) => {
   // Student register handler
   const registerStudent = async (studentData) => {
     try {
-      const { email, password, name, registerNumber, department, year } = studentData;
+      const { email, password, name, registerNumber, department, year, mentorId } = studentData;
       
       // First, create the user inside Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -296,6 +352,11 @@ export const AuthProvider = ({ children }) => {
         trustedDeviceToken: null,
         deviceApproved: false,
         attendancePercentage: 0,
+        presentDays: 0,
+        absentDays: 0,
+        totalWorkingDays: 0,
+        passwordPrivacy: false,
+        mentorId: mentorId || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -303,7 +364,7 @@ export const AuthProvider = ({ children }) => {
       // Firebase automatically signs in the user. Log them out to preserve UI manual login flow.
       await signOut(auth);
 
-      return { success: true, message: 'Student registered successfully!' };
+      return { success: true, message: 'Student registered successfully! Please wait for your mentor or admin to set the password privacy button.' };
     } catch (error) {
       console.error('Student registration error:', error);
       let message = 'Registration failed. Please try again.';
@@ -313,6 +374,65 @@ export const AuthProvider = ({ children }) => {
         message = 'Password is too weak.';
       } else if (error.code === 'auth/configuration-not-found') {
         message = 'Email/Password registration is not enabled in the Firebase Console. Please enable it under Build > Authentication > Sign-in method.';
+      } else if (error.message) {
+        message = error.message;
+      }
+      return { success: false, message };
+    }
+  };
+
+  // Secondary auth helper to allow registering users without logging out
+  const getSecondaryAuth = () => {
+    const appName = "SecondaryApp";
+    let app;
+    if (getApps().some(a => a.name === appName)) {
+      app = getApp(appName);
+    } else {
+      app = initializeApp(auth.app.options, appName);
+    }
+    return getAuth(app);
+  };
+
+  // Student register handler by mentor/admin
+  const adminRegisterStudent = async (studentData) => {
+    try {
+      const { email, password, name, registerNumber, department, year, passwordPrivacy, mentorId } = studentData;
+      
+      const secAuth = getSecondaryAuth();
+      const userCredential = await createUserWithEmailAndPassword(secAuth, email, password);
+      const uid = userCredential.user.uid;
+      
+      // Sign out secondary auth immediately to clean up state
+      await signOut(secAuth);
+
+      // Save student profile document in Firestore
+      await setDoc(doc(db, 'students', uid), {
+        name,
+        registerNumber,
+        email,
+        department,
+        year: parseInt(year),
+        role: 'student',
+        trustedDeviceToken: null,
+        deviceApproved: false,
+        attendancePercentage: 0,
+        presentDays: 0,
+        absentDays: 0,
+        totalWorkingDays: 0,
+        passwordPrivacy: !!passwordPrivacy,
+        mentorId: mentorId || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      return { success: true, message: 'Student registered successfully!' };
+    } catch (error) {
+      console.error('Admin student registration error:', error);
+      let message = 'Registration failed. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'Email already in use.';
+      } else if (error.code === 'auth/weak-password') {
+        message = 'Password is too weak.';
       } else if (error.message) {
         message = error.message;
       }
@@ -342,6 +462,16 @@ export const AuthProvider = ({ children }) => {
         email,
         department,
         role,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Also create mentor document
+      await setDoc(doc(db, 'mentors', uid), {
+        name,
+        email,
+        department: department || (role === 'admin' ? 'Admin' : 'N/A'),
+        role: 'mentor',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -456,6 +586,10 @@ export const AuthProvider = ({ children }) => {
       const studentSnap = await getDoc(studentRef);
       if (studentSnap.exists()) {
         const studentData = studentSnap.data();
+        if (!studentData.passwordPrivacy) {
+          await signOut(auth);
+          return { success: false, message: 'Your login is pending approval. Please ask your mentor or admin to register your details and set the password privacy button.' };
+        }
         const localDeviceToken = getOrGenerateDeviceToken();
         let loggedUser = { _id: uid, ...studentData };
 
@@ -519,7 +653,7 @@ export const AuthProvider = ({ children }) => {
       const department = additionalData.department;
 
       if (role === 'student') {
-        const { registerNumber, year } = additionalData;
+        const { registerNumber, year, mentorId } = additionalData;
         const localDeviceToken = getOrGenerateDeviceToken();
 
         await setDoc(doc(db, 'students', uid), {
@@ -532,9 +666,17 @@ export const AuthProvider = ({ children }) => {
           trustedDeviceToken: localDeviceToken,
           deviceApproved: true,
           attendancePercentage: 0,
+          presentDays: 0,
+          absentDays: 0,
+          totalWorkingDays: 0,
+          passwordPrivacy: false,
+          mentorId: mentorId || null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
+
+        await signOut(auth);
+        return { success: true, isPendingApproval: true, message: 'Google profile registration complete! Please wait for your mentor or admin to set the password privacy button.' };
       } else {
         const { adminSecret } = additionalData;
         let finalRole = 'teacher';
@@ -566,10 +708,12 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         loading,
+        mentors,
         darkMode,
         toggleDarkMode,
         login,
         registerStudent,
+        adminRegisterStudent,
         registerTeacher,
         loginWithGoogle,
         registerGoogleUser,

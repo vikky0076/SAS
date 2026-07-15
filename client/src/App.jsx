@@ -22,6 +22,7 @@ import DeviceRequests from './pages/DeviceRequests';
 import Reports from './pages/Reports';
 import ManageTeachers from './pages/ManageTeachers';
 import ManageStudents from './pages/ManageStudents';
+import MentorDashboard from './pages/MentorDashboard';
 
 // Route decider for dashboard based on user role
 const DashboardRouter = () => {
@@ -95,12 +96,13 @@ function AppRoutes() {
           <Route path="/start-session" element={<StartSession />} />
           <Route path="/device-requests" element={<DeviceRequests />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/manage-students" element={<ManageStudents />} />
+          <Route path="/mentor-dashboard" element={<MentorDashboard />} />
         </Route>
 
         {/* Admin Specific Routes */}
         <Route element={<ProtectedLayout allowedRoles={['admin']} />}>
           <Route path="/manage-teachers" element={<ManageTeachers />} />
-          <Route path="/manage-students" element={<ManageStudents />} />
         </Route>
 
         {/* Fallbacks */}

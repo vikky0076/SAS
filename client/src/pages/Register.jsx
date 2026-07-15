@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiMail, FiLock, FiBook, FiHash, FiAward, FiBookOpen } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowRight, FiUser, FiHash, FiBook, FiAward, FiBookOpen } from 'react-icons/fi';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -15,21 +15,22 @@ const GoogleIcon = () => (
 );
 
 const Register = () => {
-  const [role, setRole] = useState('student'); // 'student' or 'teacher'
+  const [role, setRole] = useState('student');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [department, setDepartment] = useState('');
-  
+
   // Student specific
   const [registerNumber, setRegisterNumber] = useState('');
   const [year, setYear] = useState(1);
+  const [mentorId, setMentorId] = useState('');
   
   // Teacher specific
   const [adminSecret, setAdminSecret] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const { registerStudent, registerTeacher, loginWithGoogle, registerGoogleUser } = useAuth();
+  const { registerStudent, registerTeacher, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
   const navigate = useNavigate();
 
   // Complete Profile States (for first-time Google logins)
@@ -40,6 +41,7 @@ const Register = () => {
   const [googleDept, setGoogleDept] = useState('');
   const [googleYear, setGoogleYear] = useState(1);
   const [googleAdminSecret, setGoogleAdminSecret] = useState('');
+  const [googleMentorId, setGoogleMentorId] = useState('');
   const [completeLoading, setCompleteLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -52,9 +54,9 @@ const Register = () => {
     let result;
 
     if (role === 'student') {
-      if (!registerNumber || !year) {
+      if (!registerNumber || !year || !mentorId) {
         setLoading(false);
-        return toast.error('Please fill in student register number and year');
+        return toast.error('Please fill in student register number, year, and select a mentor');
       }
       result = await registerStudent({
         name,
@@ -62,7 +64,8 @@ const Register = () => {
         registerNumber,
         password,
         department,
-        year: parseInt(year)
+        year: parseInt(year),
+        mentorId
       });
     } else {
       result = await registerTeacher({
@@ -95,9 +98,6 @@ const Register = () => {
         setShowProfileModal(true);
       } else {
         toast.success(`Welcome back, ${result.user.name}!`);
-        if (result.user.role === 'student' && result.user.deviceMismatch) {
-          toast.error('New device detected! Attendance is locked until approved.', { duration: 6000 });
-        }
         navigate('/dashboard');
       }
     } else {
@@ -113,6 +113,9 @@ const Register = () => {
     if (googleRole === 'student' && !googleRegNo) {
       return toast.error('Register Number is required');
     }
+    if (googleRole === 'student' && !googleMentorId) {
+      return toast.error('Mentor selection is required');
+    }
 
     setCompleteLoading(true);
     const details = {
@@ -120,47 +123,81 @@ const Register = () => {
       department: googleDept,
       registerNumber: googleRegNo,
       year: parseInt(googleYear),
-      adminSecret: googleAdminSecret
+      adminSecret: googleAdminSecret,
+      mentorId: googleMentorId
     };
 
     const res = await registerGoogleUser(googleUser, googleRole, details);
     setCompleteLoading(false);
 
     if (res.success) {
-      toast.success('Profile registration complete!');
+      toast.success(res.message || 'Profile setup complete!');
       setShowProfileModal(false);
-      navigate('/dashboard');
+      if (res.isPendingApproval) {
+        navigate('/login');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       toast.error(res.message);
     }
   };
 
   return (
-    <div className="min-h-screen py-12 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 relative">
+    <div 
+      className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-cover bg-center py-12" 
+      style={{ backgroundImage: "url('/classroom_bg.png')" }}
+    >
+      {/* Dark transparent overlay */}
+      <div className="absolute inset-0 bg-slate-950/45 z-0 backdrop-blur-xs"></div>
+
+      {/* Floating particles decoration */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="particle"
+            style={{
+              width: `${Math.random() * 8 + 4}px`,
+              height: `${Math.random() * 8 + 4}px`,
+              left: `${Math.random() * 100}%`,
+              bottom: `-${Math.random() * 20 + 10}px`,
+              animationDelay: `${Math.random() * 20}s`,
+              animationDuration: `${Math.random() * 15 + 15}s`
+            }}
+          />
+        ))}
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-lg"
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-lg z-10"
       >
         <div className="text-center mb-6">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-600 items-center justify-center text-white font-black text-2xl shadow-xl shadow-primary-500/20 mb-3">
+          <motion.div 
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] items-center justify-center text-white font-black text-3xl shadow-lg shadow-orange-500/30 mb-4 glow-orange"
+          >
             S
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Create an Account</h2>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Smart Attendance System Registration</p>
+          </motion.div>
+          <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-md">Create an Account</h2>
+          <p className="text-xs font-bold text-orange-200 mt-1 tracking-wider uppercase drop-shadow-sm">Smart Attendance System Registration</p>
         </div>
 
-        <div className="glass-card p-8 space-y-6">
+        <div className="glass-card p-8 space-y-6 glow-orange-border">
           {/* Role Toggle Selector */}
-          <div className="flex bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800/30">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
             <button
               type="button"
               onClick={() => setRole('student')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
                 role === 'student'
-                  ? 'bg-primary-500 text-white shadow'
-                  : 'text-slate-650 dark:text-slate-400'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
+                  : 'text-slate-500'
               }`}
             >
               Student
@@ -168,10 +205,10 @@ const Register = () => {
             <button
               type="button"
               onClick={() => setRole('teacher')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
                 role === 'teacher'
-                  ? 'bg-primary-500 text-white shadow'
-                  : 'text-slate-650 dark:text-slate-400'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
+                  : 'text-slate-500'
               }`}
             >
               Teacher / Admin
@@ -182,9 +219,9 @@ const Register = () => {
             {/* General Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Full Name</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Full Name</label>
                 <div className="relative">
-                  <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                  <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="John Doe"
@@ -197,9 +234,9 @@ const Register = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Email Address</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Email Address</label>
                 <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-455 w-4 h-4" />
                   <input
                     type="email"
                     placeholder="john@college.edu"
@@ -214,9 +251,9 @@ const Register = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Password</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Password</label>
                 <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="password"
                     placeholder="Min 6 chars"
@@ -229,15 +266,15 @@ const Register = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Department</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Department</label>
                 <div className="relative">
-                  <FiBook className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                  <FiBook className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="e.g. CSE, ECE"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="glass-input w-full pl-10 text-sm"
+                    className="glass-input w-full pl-10 text-sm uppercase"
                     required
                   />
                 </div>
@@ -255,9 +292,9 @@ const Register = () => {
                   className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1"
                 >
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Register Number</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Register Number</label>
                     <div className="relative">
-                      <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                      <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
                         type="text"
                         placeholder="e.g. 21102345"
@@ -270,19 +307,37 @@ const Register = () => {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Year of Study</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Year of Study</label>
                     <div className="relative">
-                      <FiAward className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                      <FiAward className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <select
                         value={year}
                         onChange={(e) => setYear(e.target.value)}
-                        className="glass-input w-full pl-10 text-sm appearance-none"
+                        className="glass-input w-full pl-10 text-sm appearance-none py-2"
                         required
                       >
                         <option value={1}>1st Year</option>
                         <option value={2}>2nd Year</option>
                         <option value={3}>3rd Year</option>
                         <option value={4}>4th Year</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Assigned Mentor</label>
+                    <div className="relative">
+                      <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
+                      <select
+                        value={mentorId}
+                        onChange={(e) => setMentorId(e.target.value)}
+                        className="glass-input w-full pl-10 text-sm appearance-none py-2"
+                        required
+                      >
+                        <option value="">-- Choose Mentor --</option>
+                        {mentors.map((m) => (
+                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -295,9 +350,9 @@ const Register = () => {
                   exit={{ opacity: 0, height: 0 }}
                   className="space-y-1 pt-1"
                 >
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin Passcode (Optional)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Admin Passcode (Optional)</label>
                   <div className="relative">
-                    <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-440 w-4 h-4" />
+                    <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
                       type="password"
                       placeholder="Only if registering as Admin"
@@ -311,11 +366,11 @@ const Register = () => {
             </AnimatePresence>
 
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.02, boxShadow: "0 0 15px rgba(255, 107, 0, 0.4)" }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50 mt-4"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white font-bold text-sm shadow-md transition-all disabled:opacity-50 mt-4"
             >
               {loading ? 'Creating Account...' : 'Register'}
             </motion.button>
@@ -323,26 +378,26 @@ const Register = () => {
 
           {/* Divider */}
           <div className="flex items-center my-4">
-            <div className="flex-grow border-t border-slate-200/50 dark:border-slate-800/50"></div>
-            <span className="px-3 text-xs font-semibold text-slate-400 uppercase">or</span>
-            <div className="flex-grow border-t border-slate-200/50 dark:border-slate-800/50"></div>
+            <div className="flex-grow border-t border-slate-200/50"></div>
+            <span className="px-3 text-xs font-bold text-slate-400 uppercase">or</span>
+            <div className="flex-grow border-t border-slate-200/50"></div>
           </div>
 
           {/* Google Register */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
             whileTap={{ scale: 0.98 }}
             onClick={handleGoogleRegister}
             disabled={loading}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-sm shadow-sm transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-sm transition-all disabled:opacity-50"
           >
             <GoogleIcon />
             <span>Continue with Google</span>
           </motion.button>
 
-          <div className="mt-6 pt-6 border-t border-slate-200/50 dark:border-slate-800/50 text-center">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-450">Already have an account? </span>
-            <Link to="/login" className="text-sm font-bold text-primary-500 hover:underline">Sign in here</Link>
+          <div className="mt-6 pt-6 border-t border-slate-200/50 text-center">
+            <span className="text-sm font-medium text-slate-500">Already have an account? </span>
+            <Link to="/login" className="text-sm font-bold text-[#FF6B00] hover:underline">Sign in here</Link>
           </div>
         </div>
       </motion.div>
@@ -352,28 +407,28 @@ const Register = () => {
         {showProfileModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 30 }}
-              className="glass-card max-w-md w-full p-8 space-y-6 shadow-2xl relative"
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              className="glass-card max-w-md w-full p-8 space-y-6 shadow-2xl relative border border-orange-500/20"
             >
               <div className="text-center">
-                <h3 className="text-lg font-black text-slate-850 dark:text-white">Complete Your Profile</h3>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Please enter your academic portal details below</p>
+                <h3 className="text-lg font-black text-slate-800">Complete Your Profile</h3>
+                <p className="text-xs font-semibold text-slate-500 mt-1">Please enter your academic portal details below</p>
               </div>
 
               <form onSubmit={handleCompleteProfile} className="space-y-4">
                 {/* Role Switcher */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">I am a</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">I am a</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setGoogleRole('student')}
                       className={`py-2 rounded-lg font-bold text-xs border transition-all ${
                         googleRole === 'student'
-                          ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400'
-                          : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-900/50'
+                          ? 'bg-[#FF6B00]/10 border-[#FF6B00] text-[#FF6B00]'
+                          : 'bg-transparent border-slate-200 text-slate-500 hover:bg-slate-100/50'
                       }`}
                     >
                       Student
@@ -383,8 +438,8 @@ const Register = () => {
                       onClick={() => setGoogleRole('teacher')}
                       className={`py-2 rounded-lg font-bold text-xs border transition-all ${
                         googleRole === 'teacher'
-                          ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400'
-                          : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-900/50'
+                          ? 'bg-[#FF6B00]/10 border-[#FF6B00] text-[#FF6B00]'
+                          : 'bg-transparent border-slate-200 text-slate-500 hover:bg-slate-100/50'
                       }`}
                     >
                       Faculty Member
@@ -394,7 +449,7 @@ const Register = () => {
 
                 {/* Department */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Department</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Department</label>
                   <div className="relative">
                     <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
@@ -412,7 +467,7 @@ const Register = () => {
                   <>
                     {/* Register Number */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555 dark:text-slate-455">Register Number</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Register Number</label>
                       <div className="relative">
                         <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                         <input
@@ -428,7 +483,7 @@ const Register = () => {
 
                     {/* Academic Year */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555 dark:text-slate-455">Current Year</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Current Year</label>
                       <select
                         value={googleYear}
                         onChange={(e) => setGoogleYear(e.target.value)}
@@ -440,11 +495,27 @@ const Register = () => {
                         <option value={4}>4th Year</option>
                       </select>
                     </div>
+
+                    {/* Mentor */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Choose Mentor</label>
+                      <select
+                        value={googleMentorId}
+                        onChange={(e) => setGoogleMentorId(e.target.value)}
+                        className="glass-input w-full text-xs py-2"
+                        required
+                      >
+                        <option value="">-- Choose Mentor --</option>
+                        {mentors.map((m) => (
+                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
+                        ))}
+                      </select>
+                    </div>
                   </>
                 ) : (
                   /* Admin passcode secret */
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555 dark:text-slate-455">Passcode Secret (Admins only)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Passcode Secret (Admins only)</label>
                     <div className="relative">
                       <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
@@ -459,11 +530,11 @@ const Register = () => {
                 )}
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, boxShadow: "0 0 10px rgba(255, 107, 0, 0.2)" }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={completeLoading}
-                  className="w-full mt-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs shadow-md shadow-primary-500/10 transition-all disabled:opacity-50"
+                  className="w-full mt-4 py-2.5 rounded-lg bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white font-bold text-xs shadow-md transition-all disabled:opacity-50"
                 >
                   {completeLoading ? 'Saving details...' : 'Submit Profile'}
                 </motion.button>

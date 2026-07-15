@@ -18,7 +18,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle, registerGoogleUser } = useAuth();
+  const { login, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
   const navigate = useNavigate();
 
   // Complete Profile States (for first-time Google logins)
@@ -28,6 +28,7 @@ const Login = () => {
   const [regNo, setRegNo] = useState('');
   const [dept, setDept] = useState('');
   const [year, setYear] = useState(1);
+  const [googleMentorId, setGoogleMentorId] = useState('');
   const [adminSecret, setAdminSecret] = useState('');
   const [completeLoading, setCompleteLoading] = useState(false);
 
@@ -81,6 +82,9 @@ const Login = () => {
     if (role === 'student' && !regNo) {
       return toast.error('Register Number is required');
     }
+    if (role === 'student' && !googleMentorId) {
+      return toast.error('Please choose a mentor');
+    }
 
     setCompleteLoading(true);
     const details = {
@@ -88,6 +92,7 @@ const Login = () => {
       department: dept,
       registerNumber: regNo,
       year: parseInt(year),
+      mentorId: googleMentorId || null,
       adminSecret
     };
 
@@ -95,35 +100,73 @@ const Login = () => {
     setCompleteLoading(false);
 
     if (res.success) {
-      toast.success('Profile registration complete!');
+      toast.success(res.message || 'Profile registration complete!');
       setShowProfileModal(false);
-      navigate('/dashboard');
+      if (res.isPendingApproval) {
+        navigate('/login');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       toast.error(res.message);
     }
   };
 
   return (
-    <div className="min-height-viewport flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-950 relative">
+    <div 
+      className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-cover bg-center" 
+      style={{ backgroundImage: "url('/classroom_bg.png')" }}
+    >
+      {/* Dark transparent overlay */}
+      <div className="absolute inset-0 bg-slate-950/45 z-0 backdrop-blur-xs"></div>
+
+      {/* Floating particles decoration */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="particle"
+            style={{
+              width: `${Math.random() * 8 + 4}px`,
+              height: `${Math.random() * 8 + 4}px`,
+              left: `${Math.random() * 100}%`,
+              bottom: `-${Math.random() * 20 + 10}px`,
+              animationDelay: `${Math.random() * 20}s`,
+              animationDuration: `${Math.random() * 15 + 15}s`
+            }}
+          />
+        ))}
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md z-10"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-600 items-center justify-center text-white font-black text-2xl shadow-xl shadow-primary-500/20 mb-3">
+        <div className="text-center mb-6">
+          {/* Logo with spring scale animation */}
+          <motion.div 
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] items-center justify-center text-white font-black text-3xl shadow-lg shadow-orange-500/30 mb-4 glow-orange"
+          >
             S
-          </div>
-          <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Smart Attendance System</h2>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1.5">Sign in to access your dashboard</p>
+          </motion.div>
+          <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-md">
+            Smart Attendance System
+          </h2>
+          <p className="text-xs font-bold text-orange-200 mt-1 tracking-wider uppercase drop-shadow-sm">
+            Secure Digital Attendance Platform
+          </p>
         </div>
 
-        <div className="glass-card p-8 space-y-6">
+        <div className="glass-card p-8 space-y-6 glow-orange-border">
           {/* Email / Password Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-400">Email Address</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Email Address</label>
               <div className="relative">
                 <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-5 h-5" />
                 <input
@@ -139,8 +182,8 @@ const Login = () => {
 
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-550 dark:text-slate-400">Password</label>
-                <Link to="/forgot-password" className="text-xs font-bold text-primary-500 hover:underline">Forgot password?</Link>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Password</label>
+                <Link to="/forgot-password" className="text-xs font-bold text-[#FF6B00] hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
                 <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-5 h-5" />
@@ -156,11 +199,11 @@ const Login = () => {
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{ scale: 1.02, boxShadow: "0 0 15px rgba(255, 107, 0, 0.4)" }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
+              className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] hover:from-[#FF7B1A] hover:to-[#FF4C4C] text-white font-bold text-sm shadow-md transition-all disabled:opacity-50"
             >
               <span>{loading ? 'Signing in...' : 'Sign In'}</span>
               {!loading && <FiArrowRight className="w-4 h-4" />}
@@ -169,26 +212,26 @@ const Login = () => {
 
           {/* Divider */}
           <div className="flex items-center my-4">
-            <div className="flex-grow border-t border-slate-200/50 dark:border-slate-800/50"></div>
-            <span className="px-3 text-xs font-semibold text-slate-400 uppercase">or</span>
-            <div className="flex-grow border-t border-slate-200/50 dark:border-slate-800/50"></div>
+            <div className="flex-grow border-t border-slate-200/50"></div>
+            <span className="px-3 text-xs font-bold text-slate-400 uppercase">or</span>
+            <div className="flex-grow border-t border-slate-200/50"></div>
           </div>
 
           {/* Google Sign-in */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
             whileTap={{ scale: 0.98 }}
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full flex items-center justify-center py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-200 font-bold text-sm shadow-sm transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center py-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-sm transition-all disabled:opacity-50"
           >
             <GoogleIcon />
             <span>Continue with Google</span>
           </motion.button>
 
-          <div className="mt-6 pt-6 border-t border-slate-200/50 dark:border-slate-800/50 text-center">
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-450">Don't have an account? </span>
-            <Link to="/register" className="text-sm font-bold text-primary-500 hover:underline">Register here</Link>
+          <div className="mt-6 pt-6 border-t border-slate-200/50 text-center">
+            <span className="text-sm font-medium text-slate-500">Don't have an account? </span>
+            <Link to="/register" className="text-sm font-bold text-[#FF6B00] hover:underline">Register here</Link>
           </div>
         </div>
       </motion.div>
@@ -198,28 +241,28 @@ const Login = () => {
         {showProfileModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 30 }}
-              className="glass-card max-w-md w-full p-8 space-y-6 shadow-2xl relative"
+              initial={{ opacity: 0, y: 30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 30, scale: 0.95 }}
+              className="glass-card max-w-md w-full p-8 space-y-6 shadow-2xl relative border border-orange-500/20"
             >
               <div className="text-center">
-                <h3 className="text-lg font-black text-slate-850 dark:text-white">Complete Your Profile</h3>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Please enter your academic portal details below</p>
+                <h3 className="text-lg font-black text-slate-800">Complete Your Profile</h3>
+                <p className="text-xs font-semibold text-slate-500 mt-1">Please enter your academic portal details below</p>
               </div>
 
               <form onSubmit={handleCompleteProfile} className="space-y-4">
                 {/* Role Switcher */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-450">I am a</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">I am a</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setRole('student')}
                       className={`py-2 rounded-lg font-bold text-xs border transition-all ${
                         role === 'student'
-                          ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400'
-                          : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-900/50'
+                          ? 'bg-[#FF6B00]/10 border-[#FF6B00] text-[#FF6B00]'
+                          : 'bg-transparent border-slate-200 text-slate-500 hover:bg-slate-100/50'
                       }`}
                     >
                       Student
@@ -229,8 +272,8 @@ const Login = () => {
                       onClick={() => setRole('teacher')}
                       className={`py-2 rounded-lg font-bold text-xs border transition-all ${
                         role === 'teacher'
-                          ? 'bg-primary-500/10 border-primary-500 text-primary-600 dark:text-primary-400'
-                          : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-900/50'
+                          ? 'bg-[#FF6B00]/10 border-[#FF6B00] text-[#FF6B00]'
+                          : 'bg-transparent border-slate-200 text-slate-500 hover:bg-slate-100/50'
                       }`}
                     >
                       Faculty Member
@@ -240,7 +283,7 @@ const Login = () => {
 
                 {/* Department */}
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-450">Department</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Department</label>
                   <div className="relative">
                     <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
@@ -258,7 +301,7 @@ const Login = () => {
                   <>
                     {/* Register Number */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Register Number</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Register Number</label>
                       <div className="relative">
                         <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                         <input
@@ -274,7 +317,7 @@ const Login = () => {
 
                     {/* Academic Year */}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Current Year</label>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Current Year</label>
                       <select
                         value={year}
                         onChange={(e) => setYear(e.target.value)}
@@ -286,11 +329,27 @@ const Login = () => {
                         <option value={4}>4th Year</option>
                       </select>
                     </div>
+
+                    {/* Mentor selector */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Choose Mentor</label>
+                      <select
+                        value={googleMentorId}
+                        onChange={(e) => setGoogleMentorId(e.target.value)}
+                        className="glass-input w-full text-xs py-2"
+                        required
+                      >
+                        <option value="">-- Choose Mentor --</option>
+                        {mentors.map((m) => (
+                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
+                        ))}
+                      </select>
+                    </div>
                   </>
                 ) : (
                   /* Admin passcode secret */
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Passcode Secret (Admins only)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Passcode Secret (Admins only)</label>
                     <div className="relative">
                       <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
@@ -305,11 +364,11 @@ const Login = () => {
                 )}
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, boxShadow: "0 0 10px rgba(255, 107, 0, 0.2)" }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={completeLoading}
-                  className="w-full mt-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs shadow-md shadow-primary-500/10 transition-all disabled:opacity-50"
+                  className="w-full mt-4 py-2.5 rounded-lg bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white font-bold text-xs shadow-md transition-all disabled:opacity-50"
                 >
                   {completeLoading ? 'Saving details...' : 'Submit Profile'}
                 </motion.button>

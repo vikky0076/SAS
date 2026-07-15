@@ -15,6 +15,8 @@ const ManageSubjects = () => {
   // Form fields
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [department, setDepartment] = useState('');
+  const [year, setYear] = useState(1);
   const [teacherId, setTeacherId] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
@@ -67,7 +69,7 @@ const ManageSubjects = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!name || !code) {
+    if (!name || !code || !department || !year) {
       return toast.error('All fields are required');
     }
     if (user.role === 'admin' && !teacherId) {
@@ -113,6 +115,8 @@ const ManageSubjects = () => {
       await addDoc(collection(db, 'subjects'), {
         name,
         code: code.toUpperCase(),
+        department: department.toUpperCase(),
+        year: parseInt(year),
         teacher: teacherData,
         createdAt: new Date().toISOString()
       });
@@ -120,6 +124,8 @@ const ManageSubjects = () => {
       toast.success('Subject created successfully!');
       setName('');
       setCode('');
+      setDepartment('');
+      setYear(1);
       setTeacherId('');
       fetchSubjects();
     } catch (error) {
@@ -188,6 +194,34 @@ const ManageSubjects = () => {
                   />
                 </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Department</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CSE"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="glass-input w-full text-sm uppercase"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Target Year</label>
+                    <select
+                      value={year}
+                      onChange={(e) => setYear(e.target.value)}
+                      className="glass-input w-full text-sm py-2"
+                      required
+                    >
+                      <option value={1}>Year 1</option>
+                      <option value={2}>Year 2</option>
+                      <option value={3}>Year 3</option>
+                      <option value={4}>Year 4</option>
+                    </select>
+                  </div>
+                </div>
+
                 {user.role === 'admin' && (
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-450">Assign Teacher</label>
@@ -232,6 +266,7 @@ const ManageSubjects = () => {
                   <tr className="bg-slate-100/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-850">
                     <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Subject Name</th>
                     <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Subject Code</th>
+                    <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Dept / Year</th>
                     {user.role === 'admin' && (
                       <>
                         <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Assigned Teacher</th>
@@ -245,6 +280,7 @@ const ManageSubjects = () => {
                     <tr key={sub._id} className="hover:bg-slate-55/20 dark:hover:bg-slate-900/10">
                       <td className="px-5 py-3.5 text-sm font-bold text-slate-800 dark:text-slate-200">{sub.name}</td>
                       <td className="px-5 py-3.5 text-sm font-semibold text-slate-500 dark:text-slate-400">{sub.code}</td>
+                      <td className="px-5 py-3.5 text-sm font-semibold text-slate-500 dark:text-slate-400">{sub.department || 'N/A'} • Yr {sub.year || 'N/A'}</td>
                       {user.role === 'admin' && (
                         <>
                           <td className="px-5 py-3.5 text-sm font-medium text-slate-650 dark:text-slate-400">{sub.teacher?.name || 'Unassigned'}</td>

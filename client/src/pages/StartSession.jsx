@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import QRCode from 'qrcode';
 import { toast } from 'react-hot-toast';
 import { FiPlay, FiBook, FiClock, FiUsers, FiRefreshCw, FiStopCircle, FiCheckCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const StartSession = () => {
   const { user } = useAuth();
@@ -19,6 +22,7 @@ const StartSession = () => {
 
   // Active Session State
   const [activeSession, setActiveSession] = useState(null);
+  const [sessionSummary, setSessionSummary] = useState(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [liveCheckins, setLiveCheckins] = useState([]);
   const [timeLeft, setTimeLeft] = useState(0); // seconds
@@ -99,7 +103,9 @@ const StartSession = () => {
         subject: {
           _id: subjectId,
           name: subjectData.name,
-          code: subjectData.code
+          code: subjectData.code,
+          department: subjectData.department || 'ALL',
+          year: subjectData.year || 0
         },
         qrToken: initialToken,
         startTime: startTime.toISOString(),
@@ -109,7 +115,13 @@ const StartSession = () => {
 
       const session = {
         _id: docRef.id,
-        subject: { _id: subjectId, name: subjectData.name, code: subjectData.code },
+        subject: {
+          _id: subjectId,
+          name: subjectData.name,
+          code: subjectData.code,
+          department: subjectData.department || 'ALL',
+          year: subjectData.year || 0
+        },
         qrToken: initialToken,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
@@ -207,6 +219,136 @@ const StartSession = () => {
     }, 1000);
   };
 
+  const updateStudentsAttendanceStats = async (department, year) => {
+    try {
+      const studentsQuery = query(
+        collection(db, 'students'),
+        where('department', '==', department),
+        where('year', '==', parseInt(year))
+      );
+      const studentsSnap = await getDocs(studentsQuery);
+      const batch = writeBatch(db);
+      
+      for (const studentDoc of studentsSnap.docs) {
+        const studentId = studentDoc.id;
+        const attendanceQuery = query(
+          collection(db, 'attendance'),
+          where('student._id', '==', studentId)
+        );
+        const attendanceSnap = await getDocs(attendanceQuery);
+        
+        const records = attendanceSnap.docs.map(doc => doc.data());
+        const presentDays = records.filter(r => r.status === 'Present').length;
+        const absentDays = records.filter(r => r.status === 'Absent').length;
+        const totalWorkingDays = presentDays + absentDays;
+        const attendancePercentage = totalWorkingDays > 0 ? parseFloat(((presentDays / totalWorkingDays) * 100).toFixed(2)) : 100;
+        
+        const studentRef = doc(db, 'students', studentId);
+        batch.update(studentRef, {
+          presentDays,
+          absentDays,
+          totalWorkingDays,
+          attendancePercentage,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      await batch.commit();
+    } catch (e) {
+      console.error('Error recalculating attendance stats:', e);
+    }
+  };
+
+  const handleExportSessionReport = (type) => {
+    if (!sessionSummary) return;
+
+    if (type === 'excel') {
+      const rows = [
+        ...sessionSummary.presentStudents.map(s => ({
+          'Register Number': s.registerNumber,
+          'Student Name': s.name,
+          'Department': s.department,
+          'Year': s.year,
+          'Status': 'Present',
+          'Time Marked': s.time
+        })),
+        ...sessionSummary.absentStudents.map(s => ({
+          'Register Number': s.registerNumber,
+          'Student Name': s.name,
+          'Department': s.department,
+          'Year': s.year,
+          'Status': 'Absent',
+          'Time Marked': 'N/A'
+        }))
+      ];
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const maxLenArr = [];
+      rows.forEach(row => {
+        Object.keys(row).forEach((key, index) => {
+          const val = row[key] ? row[key].toString() : '';
+          maxLenArr[index] = Math.max(maxLenArr[index] || 10, val.length, key.length);
+        });
+      });
+      worksheet['!cols'] = maxLenArr.map(w => ({ wch: w + 3 }));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Session Report');
+      XLSX.writeFile(workbook, `Session_Report_${sessionSummary.subjectCode}_${Date.now()}.xlsx`);
+      toast.success('Excel report downloaded successfully!');
+    } else if (type === 'pdf') {
+      const docPDF = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      docPDF.setFillColor(30, 58, 138);
+      docPDF.rect(10, 10, 190, 20, 'F');
+      
+      docPDF.setTextColor(255, 255, 255);
+      docPDF.setFont('helvetica', 'bold');
+      docPDF.setFontSize(14);
+      docPDF.text(`Class Attendance Session Report`, 15, 18);
+      docPDF.setFontSize(9);
+      docPDF.setFont('helvetica', 'normal');
+      docPDF.text(`${sessionSummary.subjectName} (${sessionSummary.subjectCode}) • ${sessionSummary.date}`, 15, 25);
+
+      docPDF.setTextColor(51, 65, 85);
+      docPDF.setFontSize(9);
+      docPDF.text(`Start Time: ${sessionSummary.startTime}`, 10, 36);
+      docPDF.text(`End Time: ${sessionSummary.endTime}`, 60, 36);
+      docPDF.text(`Total Students: ${sessionSummary.totalStudents}`, 10, 42);
+      docPDF.text(`Present: ${sessionSummary.presentCount}`, 50, 42);
+      docPDF.text(`Absent: ${sessionSummary.absentCount}`, 90, 42);
+
+      const headers = [['Register Number', 'Student Name', 'Department', 'Year', 'Status', 'Time Marked']];
+      const tableRows = [
+        ...sessionSummary.presentStudents.map(s => [s.registerNumber, s.name, s.department, s.year, 'Present', s.time]),
+        ...sessionSummary.absentStudents.map(s => [s.registerNumber, s.name, s.department, s.year, 'Absent', 'N/A'])
+      ];
+
+      docPDF.autoTable({
+        startY: 47,
+        head: headers,
+        body: tableRows,
+        theme: 'striped',
+        headStyles: { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, font: 'helvetica' },
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 4) {
+            const val = data.cell.raw;
+            if (val === 'Present') {
+              data.cell.styles.textColor = [22, 163, 74];
+              data.cell.styles.fontStyle = 'bold';
+            } else {
+              data.cell.styles.textColor = [220, 38, 38];
+              data.cell.styles.fontStyle = 'bold';
+            }
+          }
+        }
+      });
+
+      docPDF.save(`Session_Report_${sessionSummary.subjectCode}_${Date.now()}.pdf`);
+      toast.success('PDF report downloaded successfully!');
+    }
+  };
+
   const handleEndSession = async (isAutomatic = false) => {
     if (!activeSession) return;
     
@@ -215,10 +357,142 @@ const StartSession = () => {
     }
 
     try {
-      await updateDoc(doc(db, 'attendanceSessions', activeSession._id), { active: false });
+      const sessionRef = doc(db, 'attendanceSessions', activeSession._id);
+      await updateDoc(sessionRef, { active: false });
+
+      const dept = activeSession.subject.department;
+      const year = activeSession.subject.year;
+      
+      let allEligibleStudents = [];
+      if (dept && dept !== 'ALL') {
+        const studentsQuery = query(
+          collection(db, 'students'),
+          where('department', '==', dept),
+          where('year', '==', parseInt(year))
+        );
+        const studentsSnap = await getDocs(studentsQuery);
+        allEligibleStudents = studentsSnap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      } else {
+        const studentsQuery = query(collection(db, 'students'));
+        const studentsSnap = await getDocs(studentsQuery);
+        allEligibleStudents = studentsSnap.docs.map(d => ({ _id: d.id, ...d.data() }));
+      }
+      
+      const presentQuery = query(
+        collection(db, 'attendance'),
+        where('session', '==', activeSession._id)
+      );
+      const presentSnap = await getDocs(presentQuery);
+      const presentRecords = presentSnap.docs.map(d => d.data());
+      const presentStudentIds = presentRecords.map(r => r.student._id);
+      
+      const absentStudents = allEligibleStudents.filter(s => !presentStudentIds.includes(s._id));
+      const absentStudentIds = absentStudents.map(s => s._id);
+      
+      const batch = writeBatch(db);
+      const startTimeISO = activeSession.startTime;
+      const sessionDate = new Date(startTimeISO).toISOString();
+      
+      absentStudents.forEach(student => {
+        const newRef = doc(collection(db, 'attendance'));
+        batch.set(newRef, {
+          session: activeSession._id,
+          subject: {
+            _id: activeSession.subject._id,
+            name: activeSession.subject.name,
+            code: activeSession.subject.code
+          },
+          student: {
+            _id: student._id,
+            name: student.name,
+            registerNumber: student.registerNumber,
+            department: student.department,
+            year: student.year
+          },
+          date: sessionDate,
+          time: 'Absent',
+          status: 'Absent',
+          createdAt: new Date().toISOString()
+        });
+      });
+      
+      await batch.commit();
+
+      if (dept && dept !== 'ALL') {
+        await updateStudentsAttendanceStats(dept, year);
+      } else {
+        for (const student of allEligibleStudents) {
+          const studentId = student._id;
+          const attendanceQuery = query(
+            collection(db, 'attendance'),
+            where('student._id', '==', studentId)
+          );
+          const attendanceSnap = await getDocs(attendanceQuery);
+          
+          const records = attendanceSnap.docs.map(doc => doc.data());
+          const presentDays = records.filter(r => r.status === 'Present').length;
+          const absentDays = records.filter(r => r.status === 'Absent').length;
+          const totalWorkingDays = presentDays + absentDays;
+          const attendancePercentage = totalWorkingDays > 0 ? parseFloat(((presentDays / totalWorkingDays) * 100).toFixed(2)) : 100;
+          
+          const studentRef = doc(db, 'students', studentId);
+          await updateDoc(studentRef, {
+            presentDays,
+            absentDays,
+            totalWorkingDays,
+            attendancePercentage,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+
+      const totalCount = allEligibleStudents.length;
+      const presentCount = presentStudentIds.length;
+      const absentCount = absentStudentIds.length;
+      
+      await updateDoc(sessionRef, {
+        presentStudentIds,
+        absentStudentIds,
+        attendanceSummary: {
+          totalStudents: totalCount,
+          presentCount,
+          absentCount
+        },
+        endedAt: new Date().toISOString()
+      });
+
+      const presentList = presentRecords.map(r => ({
+        registerNumber: r.student?.registerNumber || '',
+        name: r.student?.name || '',
+        department: r.student?.department || '',
+        year: r.student?.year || 1,
+        time: r.time || ''
+      }));
+      
+      const absentList = absentStudents.map(s => ({
+        registerNumber: s.registerNumber || '',
+        name: s.name || '',
+        department: s.department || '',
+        year: s.year || 1
+      }));
+      
+      setSessionSummary({
+        subjectName: activeSession.subject.name,
+        subjectCode: activeSession.subject.code,
+        date: new Date(activeSession.startTime).toLocaleDateString(),
+        startTime: new Date(activeSession.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        endTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        totalStudents: totalCount,
+        presentCount,
+        absentCount,
+        presentStudents: presentList,
+        absentStudents: absentList
+      });
+
       toast.success(isAutomatic ? 'Session completed automatically!' : 'Session ended manually!');
     } catch (error) {
       console.error('Failed to end session:', error);
+      toast.error('Failed to close session properly');
     } finally {
       clearAllTimers();
       setActiveSession(null);
@@ -243,6 +517,129 @@ const StartSession = () => {
             <div className="h-6 bg-slate-350 dark:bg-slate-700 rounded w-1/3"></div>
             <div className="h-10 bg-slate-350 dark:bg-slate-700 rounded w-full"></div>
             <div className="h-10 bg-slate-350 dark:bg-slate-700 rounded w-full"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionSummary) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center space-x-2">
+              <FiCheckCircle className="text-emerald-500" />
+              <span>Session Attendance Summary</span>
+            </h2>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Class has closed. Review and export session statistics.</p>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleExportSessionReport('excel')}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow"
+            >
+              Export Excel
+            </button>
+            <button
+              onClick={() => handleExportSessionReport('pdf')}
+              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow"
+            >
+              Export PDF
+            </button>
+            <button
+              onClick={() => setSessionSummary(null)}
+              className="px-3.5 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="glass-card p-4 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject</p>
+            <p className="font-bold text-sm text-slate-800 dark:text-white">{sessionSummary.subjectName} ({sessionSummary.subjectCode})</p>
+          </div>
+          <div className="glass-card p-4 space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Date & Time</p>
+            <p className="font-bold text-sm text-slate-800 dark:text-white">{sessionSummary.date} • {sessionSummary.startTime} - {sessionSummary.endTime}</p>
+          </div>
+          <div className="glass-card p-4 space-y-1 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Present Rate</p>
+            <p className="font-black text-lg text-emerald-600">
+              {sessionSummary.totalStudents > 0 ? ((sessionSummary.presentCount / sessionSummary.totalStudents) * 100).toFixed(1) : 0}%
+            </p>
+            <p className="text-[9px] font-semibold text-slate-400">{sessionSummary.presentCount} / {sessionSummary.totalStudents} students</p>
+          </div>
+          <div className="glass-card p-4 space-y-1 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Absent Rate</p>
+            <p className="font-black text-lg text-rose-600">
+              {sessionSummary.totalStudents > 0 ? ((sessionSummary.absentCount / sessionSummary.totalStudents) * 100).toFixed(1) : 0}%
+            </p>
+            <p className="text-[9px] font-semibold text-slate-400">{sessionSummary.absentCount} / {sessionSummary.totalStudents} students</p>
+          </div>
+        </div>
+
+        {/* Two Tables Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Present Table */}
+          <div className="glass-card p-4 space-y-3">
+            <h3 className="text-sm font-bold text-emerald-600 flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>Present Students ({sessionSummary.presentCount})</span>
+            </h3>
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-850">
+                    <th className="px-3 py-2 font-bold text-slate-550">Reg No</th>
+                    <th className="px-3 py-2 font-bold text-slate-550">Name</th>
+                    <th className="px-3 py-2 font-bold text-slate-550">Dept</th>
+                    <th className="px-3 py-2 font-bold text-slate-550">Time</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-250/20 dark:divide-slate-800/20">
+                  {sessionSummary.presentStudents.map((s, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                      <td className="px-3 py-2 font-semibold text-slate-550">{s.registerNumber}</td>
+                      <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">{s.name}</td>
+                      <td className="px-3 py-2 text-slate-500">{s.department} • Yr {s.year}</td>
+                      <td className="px-3 py-2 text-emerald-600 font-bold">{s.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Absent Table */}
+          <div className="glass-card p-4 space-y-3">
+            <h3 className="text-sm font-bold text-rose-600 flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+              <span>Absent Students ({sessionSummary.absentCount})</span>
+            </h3>
+            <div className="overflow-x-auto max-h-96">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-100/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-850">
+                    <th className="px-3 py-2 font-bold text-slate-550">Reg No</th>
+                    <th className="px-3 py-2 font-bold text-slate-550">Name</th>
+                    <th className="px-3 py-2 font-bold text-slate-550">Dept</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-250/20 dark:divide-slate-800/20">
+                  {sessionSummary.absentStudents.map((s, idx) => (
+                    <tr key={idx} className="hover:bg-slate-55/20 dark:hover:bg-slate-900/50">
+                      <td className="px-3 py-2 font-semibold text-slate-550">{s.registerNumber}</td>
+                      <td className="px-3 py-2 font-bold text-slate-800 dark:text-slate-200">{s.name}</td>
+                      <td className="px-3 py-2 text-slate-500">{s.department} • Yr {s.year}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

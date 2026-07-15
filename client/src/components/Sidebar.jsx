@@ -9,7 +9,8 @@ import {
   FiSmartphone,
   FiUsers,
   FiFileText,
-  FiPlay
+  FiPlay,
+  FiTrendingUp
 } from 'react-icons/fi';
 
 const Sidebar = () => {
@@ -30,14 +31,17 @@ const Sidebar = () => {
       case 'teacher':
         return [
           { to: '/dashboard', label: 'Dashboard', icon: FiGrid },
+          { to: '/mentor-dashboard', label: 'Mentor Dashboard', icon: FiTrendingUp },
           { to: '/subjects', label: 'Manage Subjects', icon: FiBookOpen },
           { to: '/start-session', label: 'Start Session', icon: FiPlay },
+          { to: '/manage-students', label: 'Manage Students', icon: FiUsers },
           { to: '/device-requests', label: 'Device Requests', icon: FiSmartphone },
           { to: '/reports', label: 'Export Reports', icon: FiFileText }
         ];
       case 'admin':
         return [
           { to: '/dashboard', label: 'Dashboard', icon: FiGrid },
+          { to: '/mentor-dashboard', label: 'Mentor Dashboard', icon: FiTrendingUp },
           { to: '/manage-teachers', label: 'Manage Teachers', icon: FiUsers },
           { to: '/manage-students', label: 'Manage Students', icon: FiUsers },
           { to: '/manage-subjects', label: 'Manage Subjects', icon: FiBookOpen },
@@ -51,7 +55,7 @@ const Sidebar = () => {
   const links = getLinks();
 
   return (
-    <aside className="w-full md:w-64 bg-white/40 dark:bg-slate-950/40 border-r border-slate-200/50 dark:border-slate-800/50 flex-shrink-0">
+    <aside className="w-full md:w-64 bg-white/50 border-r border-orange-100 flex-shrink-0">
       <nav className="p-4 space-y-1.5 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible">
         {links.map((link) => {
           const Icon = link.icon;
@@ -62,8 +66,8 @@ const Sidebar = () => {
               className={({ isActive }) =>
                 `flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/20'
-                    : 'text-slate-650 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900'
+                    ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow-lg shadow-orange-500/35 glow-orange'
+                    : 'text-slate-600 hover:bg-orange-50 hover:text-[#FF6B00]'
                 }`
               }
             >
