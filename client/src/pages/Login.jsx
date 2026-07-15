@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMail, FiLock, FiArrowRight, FiUser, FiHash, FiBookOpen } from 'react-icons/fi';
+import { FiArrowRight } from 'react-icons/fi';
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -82,9 +82,6 @@ const Login = () => {
     if (role === 'student' && !regNo) {
       return toast.error('Register Number is required');
     }
-    if (role === 'student' && !googleMentorId) {
-      return toast.error('Please choose a mentor');
-    }
 
     setCompleteLoading(true);
     const details = {
@@ -92,7 +89,7 @@ const Login = () => {
       department: dept,
       registerNumber: regNo,
       year: parseInt(year),
-      mentorId: googleMentorId || null,
+      mentorId: null,
       adminSecret
     };
 
@@ -168,13 +165,12 @@ const Login = () => {
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Email Address</label>
               <div className="relative">
-                <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-5 h-5" />
                 <input
                   type="email"
                   placeholder="name@college.edu"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="glass-input w-full pl-11"
+                  className="glass-input w-full"
                   required
                 />
               </div>
@@ -186,13 +182,12 @@ const Login = () => {
                 <Link to="/forgot-password" className="text-xs font-bold text-[#FF6B00] hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-5 h-5" />
                 <input
                   type="password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full pl-11"
+                  className="glass-input w-full"
                   required
                 />
               </div>
@@ -285,13 +280,12 @@ const Login = () => {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Department</label>
                   <div className="relative">
-                    <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
                       type="text"
                       placeholder="e.g. Computer Science"
                       value={dept}
                       onChange={(e) => setDept(e.target.value)}
-                      className="glass-input w-full pl-10 text-xs py-2"
+                      className="glass-input w-full text-xs py-2"
                       required
                     />
                   </div>
@@ -303,13 +297,12 @@ const Login = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Register Number</label>
                       <div className="relative">
-                        <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                         <input
                           type="text"
                           placeholder="e.g. 3122215001"
                           value={regNo}
                           onChange={(e) => setRegNo(e.target.value)}
-                          className="glass-input w-full pl-10 text-xs py-2"
+                          className="glass-input w-full text-xs py-2"
                           required
                         />
                       </div>
@@ -329,35 +322,18 @@ const Login = () => {
                         <option value={4}>4th Year</option>
                       </select>
                     </div>
-
-                    {/* Mentor selector */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Choose Mentor</label>
-                      <select
-                        value={googleMentorId}
-                        onChange={(e) => setGoogleMentorId(e.target.value)}
-                        className="glass-input w-full text-xs py-2"
-                        required
-                      >
-                        <option value="">-- Choose Mentor --</option>
-                        {mentors.map((m) => (
-                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
-                        ))}
-                      </select>
-                    </div>
                   </>
                 ) : (
                   /* Admin passcode secret */
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Passcode Secret (Admins only)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Passcode Secret (Admins only)</label>
                     <div className="relative">
-                      <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
                         type="password"
                         placeholder="Leave blank for regular Teacher role"
                         value={adminSecret}
                         onChange={(e) => setAdminSecret(e.target.value)}
-                        className="glass-input w-full pl-10 text-xs py-2"
+                        className="glass-input w-full text-xs py-2"
                       />
                     </div>
                   </div>

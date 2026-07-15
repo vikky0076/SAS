@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiMail, FiLock, FiArrowRight, FiUser, FiHash, FiBook, FiAward, FiBookOpen } from 'react-icons/fi';
+
 
 const GoogleIcon = () => (
   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -54,9 +54,9 @@ const Register = () => {
     let result;
 
     if (role === 'student') {
-      if (!registerNumber || !year || !mentorId) {
+      if (!registerNumber || !year) {
         setLoading(false);
-        return toast.error('Please fill in student register number, year, and select a mentor');
+        return toast.error('Please fill in student register number and year');
       }
       result = await registerStudent({
         name,
@@ -65,7 +65,7 @@ const Register = () => {
         password,
         department,
         year: parseInt(year),
-        mentorId
+        mentorId: null
       });
     } else {
       result = await registerTeacher({
@@ -113,9 +113,6 @@ const Register = () => {
     if (googleRole === 'student' && !googleRegNo) {
       return toast.error('Register Number is required');
     }
-    if (googleRole === 'student' && !googleMentorId) {
-      return toast.error('Mentor selection is required');
-    }
 
     setCompleteLoading(true);
     const details = {
@@ -124,7 +121,7 @@ const Register = () => {
       registerNumber: googleRegNo,
       year: parseInt(googleYear),
       adminSecret: googleAdminSecret,
-      mentorId: googleMentorId
+      mentorId: null
     };
 
     const res = await registerGoogleUser(googleUser, googleRole, details);
@@ -221,13 +218,12 @@ const Register = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Full Name</label>
                 <div className="relative">
-                  <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="John Doe"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="glass-input w-full pl-10 text-sm"
+                    className="glass-input w-full text-sm"
                     required
                   />
                 </div>
@@ -236,13 +232,12 @@ const Register = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Email Address</label>
                 <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-455 w-4 h-4" />
                   <input
                     type="email"
                     placeholder="john@college.edu"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="glass-input w-full pl-10 text-sm"
+                    className="glass-input w-full text-sm"
                     required
                   />
                 </div>
@@ -253,13 +248,12 @@ const Register = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Password</label>
                 <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="password"
                     placeholder="Min 6 chars"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="glass-input w-full pl-10 text-sm"
+                    className="glass-input w-full text-sm"
                     required
                   />
                 </div>
@@ -268,13 +262,12 @@ const Register = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Department</label>
                 <div className="relative">
-                  <FiBook className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="e.g. CSE, ECE"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="glass-input w-full pl-10 text-sm uppercase"
+                    className="glass-input w-full text-sm uppercase"
                     required
                   />
                 </div>
@@ -294,13 +287,12 @@ const Register = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Register Number</label>
                     <div className="relative">
-                      <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
                         type="text"
                         placeholder="e.g. 21102345"
                         value={registerNumber}
                         onChange={(e) => setRegisterNumber(e.target.value)}
-                        className="glass-input w-full pl-10 text-sm"
+                        className="glass-input w-full text-sm"
                         required
                       />
                     </div>
@@ -309,35 +301,16 @@ const Register = () => {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Year of Study</label>
                     <div className="relative">
-                      <FiAward className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <select
                         value={year}
                         onChange={(e) => setYear(e.target.value)}
-                        className="glass-input w-full pl-10 text-sm appearance-none py-2"
+                        className="glass-input w-full text-sm appearance-none py-2"
                         required
                       >
                         <option value={1}>1st Year</option>
                         <option value={2}>2nd Year</option>
                         <option value={3}>3rd Year</option>
                         <option value={4}>4th Year</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 md:col-span-2">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Assigned Mentor</label>
-                    <div className="relative">
-                      <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
-                      <select
-                        value={mentorId}
-                        onChange={(e) => setMentorId(e.target.value)}
-                        className="glass-input w-full pl-10 text-sm appearance-none py-2"
-                        required
-                      >
-                        <option value="">-- Choose Mentor --</option>
-                        {mentors.map((m) => (
-                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
-                        ))}
                       </select>
                     </div>
                   </div>
@@ -352,13 +325,12 @@ const Register = () => {
                 >
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Admin Passcode (Optional)</label>
                   <div className="relative">
-                    <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
                       type="password"
                       placeholder="Only if registering as Admin"
                       value={adminSecret}
                       onChange={(e) => setAdminSecret(e.target.value)}
-                      className="glass-input w-full pl-10 text-sm"
+                      className="glass-input w-full text-sm"
                     />
                   </div>
                 </motion.div>
@@ -451,13 +423,12 @@ const Register = () => {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550">Department</label>
                   <div className="relative">
-                    <FiBookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                     <input
                       type="text"
                       placeholder="e.g. Computer Science"
                       value={googleDept}
                       onChange={(e) => setGoogleDept(e.target.value)}
-                      className="glass-input w-full pl-10 text-xs py-2"
+                      className="glass-input w-full text-xs py-2"
                       required
                     />
                   </div>
@@ -469,13 +440,12 @@ const Register = () => {
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Register Number</label>
                       <div className="relative">
-                        <FiHash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                         <input
                           type="text"
                           placeholder="e.g. 3122215001"
                           value={googleRegNo}
                           onChange={(e) => setGoogleRegNo(e.target.value)}
-                          className="glass-input w-full pl-10 text-xs py-2"
+                          className="glass-input w-full text-xs py-2"
                           required
                         />
                       </div>
@@ -495,35 +465,18 @@ const Register = () => {
                         <option value={4}>4th Year</option>
                       </select>
                     </div>
-
-                    {/* Mentor */}
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Choose Mentor</label>
-                      <select
-                        value={googleMentorId}
-                        onChange={(e) => setGoogleMentorId(e.target.value)}
-                        className="glass-input w-full text-xs py-2"
-                        required
-                      >
-                        <option value="">-- Choose Mentor --</option>
-                        {mentors.map((m) => (
-                          <option key={m._id} value={m._id}>{m.name} ({m.department})</option>
-                        ))}
-                      </select>
-                    </div>
                   </>
                 ) : (
                   /* Admin passcode secret */
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-555">Passcode Secret (Admins only)</label>
                     <div className="relative">
-                      <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-4 h-4" />
                       <input
                         type="password"
                         placeholder="Leave blank for regular Teacher role"
                         value={googleAdminSecret}
                         onChange={(e) => setGoogleAdminSecret(e.target.value)}
-                        className="glass-input w-full pl-10 text-xs py-2"
+                        className="glass-input w-full text-xs py-2"
                       />
                     </div>
                   </div>
