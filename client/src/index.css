@@ -131,3 +131,17 @@
     opacity: 0;
   }
 }
+
+/* Ken Burns background zoom animation */
+.bg-zoom-animate {
+  animation: backgroundZoom 25s infinite alternate ease-in-out;
+}
+
+@keyframes backgroundZoom {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+  }
+}

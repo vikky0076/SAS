@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import { FiMail, FiArrowLeft, FiKey } from 'react-icons/fi';
+import { FiArrowLeft, FiKey } from 'react-icons/fi';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -35,10 +35,12 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div 
-      className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden bg-cover bg-center" 
-      style={{ backgroundImage: "url('/classroom_bg.png')" }}
-    >
+    <div className="min-h-screen w-full flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Image with Zoom Animation */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-zoom-animate" 
+        style={{ backgroundImage: "url('/classroom_bg.png')" }}
+      />
       {/* Dark transparent overlay */}
       <div className="absolute inset-0 bg-slate-950/45 z-0 backdrop-blur-xs"></div>
 
@@ -78,9 +80,9 @@ const ForgotPassword = () => {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, damping: 15 }}
-            className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] items-center justify-center text-white font-black text-3xl shadow-lg shadow-orange-500/30 mb-4 glow-orange"
+            className="inline-flex px-5 h-16 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] items-center justify-center text-white font-black text-2xl shadow-lg shadow-orange-500/30 mb-4 glow-orange tracking-widest"
           >
-            S
+            SAS
           </motion.div>
           <h2 className="text-3xl font-black text-white tracking-tight drop-shadow-md">Forgot Password</h2>
           <p className="text-xs font-bold text-orange-200 mt-1 tracking-wider uppercase drop-shadow-sm">Recover your account password</p>
@@ -92,13 +94,12 @@ const ForgotPassword = () => {
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-650">Email Address</label>
                 <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-450 w-5 h-5" />
                   <input
                     type="email"
                     placeholder="name@college.edu"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="glass-input w-full pl-11"
+                    className="glass-input w-full"
                     required
                   />
                 </div>

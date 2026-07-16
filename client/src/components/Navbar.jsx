@@ -10,8 +10,8 @@ const Navbar = () => {
   return (
     <header className="glass-nav sticky top-0 z-40 w-full px-6 py-4 flex items-center justify-between">
       <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] flex items-center justify-center text-white font-bold text-xl shadow-md shadow-orange-500/20 glow-orange">
-          S
+        <div className="px-3 h-10 rounded-xl bg-gradient-to-tr from-[#FF6B00] to-[#FF3B3B] flex items-center justify-center text-white font-black text-lg shadow-md shadow-orange-500/20 glow-orange tracking-wider">
+          SAS
         </div>
         <span className="font-extrabold text-xl bg-clip-text text-transparent bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] tracking-tight">
           SmartAttend
