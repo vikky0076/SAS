@@ -17,7 +17,7 @@ const ResetPassword = () => {
 
   useEffect(() => {
     const qEmail = searchParams.get('email');
-    const qToken = searchParams.get('token');
+    const qToken = searchParams.get('token') || searchParams.get('oobCode');
     if (qEmail) setEmail(qEmail);
     if (qToken) setToken(qToken);
   }, [searchParams]);

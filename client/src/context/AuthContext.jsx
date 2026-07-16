@@ -569,7 +569,19 @@ export const AuthProvider = ({ children }) => {
       return { success: true, message: 'Password has been reset successfully.' };
     } catch (error) {
       console.error('Confirm reset password error:', error);
-      return { success: false, message: error.message || 'Failed to reset password.' };
+      let message = 'Failed to reset password.';
+      if (error.code === 'auth/invalid-action-code') {
+        message = 'The password reset link is invalid, malformed, or has already been used. Please request a new password reset email.';
+      } else if (error.code === 'auth/expired-action-code') {
+        message = 'The password reset link has expired. Please request a new password reset email.';
+      } else if (error.code === 'auth/user-disabled') {
+        message = 'This user account has been disabled.';
+      } else if (error.code === 'auth/user-not-found') {
+        message = 'No user found associated with this request.';
+      } else if (error.message) {
+        message = error.message;
+      }
+      return { success: false, message };
     }
   };
 
