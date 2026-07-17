@@ -75,7 +75,16 @@ service cloud.firestore {
     
     // Notifications Collection
     match /notifications/{notificationId} {
-      allow read, write: if isAuthenticated() && (isAdmin() || isTeacher());
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && resource.data.studentId == request.auth.uid));
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && resource.data.studentId == request.auth.uid));
+    }
+
+    // Attendance Requests Collection
+    match /attendanceRequests/{requestId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || (isStudent() && resource.data.student._id == request.auth.uid));
+      allow create: if isAuthenticated() && (isStudent() && request.resource.data.student._id == request.auth.uid);
+      allow update, delete: if isAuthenticated() && (isAdmin() || isTeacher());
     }
 
     // Mentors Collection

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { FiCheckCircle, FiClock, FiCamera, FiAlertTriangle, FiSmartphone, FiAward, FiBookOpen } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -12,13 +12,58 @@ const StudentDashboard = () => {
   const { user } = useAuth();
   const [activeSessions, setActiveSessions] = useState([]);
   const [history, setHistory] = useState([]);
+  const [attendanceRequests, setAttendanceRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?._id) {
-      fetchDashboardData();
-    }
+    if (!user?._id) return;
+
+    fetchDashboardData();
+
+    // 1. Subscribe to student's pending/approved/rejected attendance requests for today in real-time
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attReqQuery = query(
+      collection(db, 'attendanceRequests'),
+      where('student._id', '==', user._id),
+      where('createdAt', '>=', today.toISOString())
+    );
+
+    const unsubRequests = onSnapshot(attReqQuery, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({
+        _id: doc.id,
+        ...doc.data()
+      }));
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setAttendanceRequests(list);
+    }, (err) => {
+      console.error('Real-time attendance requests subscription error:', err);
+    });
+
+    // 2. Subscribe to student's notifications in real-time
+    const notificationsQuery = query(
+      collection(db, 'notifications'),
+      where('studentId', '==', user._id)
+    );
+
+    const unsubNotifications = onSnapshot(notificationsQuery, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({
+        _id: doc.id,
+        ...doc.data()
+      }));
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setNotifications(list);
+    }, (err) => {
+      console.error('Real-time notifications subscription error:', err);
+    });
+
+    return () => {
+      unsubRequests();
+      unsubNotifications();
+    };
   }, [user]);
 
   const fetchDashboardData = async () => {
@@ -198,7 +243,29 @@ const StudentDashboard = () => {
 
           <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-orange-500/5 blur-2xl group-hover:bg-orange-500/10 transition-all duration-500"></div>
         </motion.div>
-      </div>
+      </div>      {/* Today's Status Banner */}
+      {attendanceRequests.length > 0 && (
+        <div className="glass-card p-5 border border-orange-150/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Today's Attendance Status</h3>
+            <p className="text-xs text-slate-550 font-semibold mt-0.5">Summary of attendance requests submitted today</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {attendanceRequests.map((req) => (
+              <div key={req._id} className="flex items-center space-x-2 p-2 bg-slate-50 rounded-xl border border-slate-200/50">
+                <span className="text-xs font-bold text-slate-700">{req.subject?.code}:</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wide ${
+                  req.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
+                  req.status === 'Rejected' ? 'bg-rose-100 text-rose-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {req.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -247,10 +314,56 @@ const StudentDashboard = () => {
               </div>
             )}
           </div>
+
+          {/* Pending Approval Queue */}
+          <div className="glass-card p-6 border border-orange-100/50">
+            <h3 className="text-lg font-bold text-slate-805 mb-4 flex items-center space-x-2">
+              <FiClock className="text-[#FF6B00]" />
+              <span>Pending Approval Queue</span>
+            </h3>
+            {attendanceRequests.filter(r => r.status === 'Pending').length === 0 ? (
+              <p className="text-xs font-semibold text-slate-405 py-4 text-center">No pending attendance requests right now.</p>
+            ) : (
+              <div className="space-y-3">
+                {attendanceRequests.filter(r => r.status === 'Pending').map((req) => (
+                  <div key={req._id} className="p-3 bg-yellow-50/20 border border-yellow-105/30 rounded-xl flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-slate-805 text-sm">{req.subject?.name}</h4>
+                      <p className="text-[10px] font-semibold text-slate-500">{req.subject?.code} • Requested at {req.time}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-yellow-100 text-yellow-800 uppercase tracking-wide animate-pulse">Awaiting Approval</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* History Column */}
         <div className="space-y-6">
+          {/* Notifications Card */}
+          <div className="glass-card p-6 border border-orange-100/50">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center space-x-2">
+              <FiAlertTriangle className="text-[#FF6B00]" />
+              <span>Real-Time Notifications ({notifications.filter(n => n.status === 'unread').length})</span>
+            </h3>
+            {notifications.length === 0 ? (
+              <p className="text-xs font-medium text-slate-400 text-center py-6">No notifications yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {notifications.slice(0, 5).map((notif) => (
+                  <div key={notif._id} className={`p-2.5 rounded-xl border text-xs ${notif.status === 'unread' ? 'bg-orange-50/20 border-orange-100/40 font-bold' : 'bg-slate-50/40 border-slate-100 text-slate-550'}`}>
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-slate-800">{notif.title}</span>
+                      <span className="text-[9px] text-slate-400 font-semibold">{new Date(notif.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1 font-medium">{notif.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="glass-card p-6 border border-orange-100/50">
             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center space-x-2">
               <FiCheckCircle className="text-[#FF6B00]" />

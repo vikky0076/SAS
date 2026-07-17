@@ -107,11 +107,39 @@ const StartSession = () => {
           department: subjectData.department || 'ALL',
           year: subjectData.year || 0
         },
+        teacherId: user._id,
         qrToken: initialToken,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         active: true
       });
+
+      // Batch send notifications to students in this department and year
+      try {
+        const studentsQuery = query(
+          collection(db, 'students'),
+          where('department', '==', subjectData.department),
+          where('year', '==', parseInt(subjectData.year))
+        );
+        const studentsSnap = await getDocs(studentsQuery);
+        if (!studentsSnap.empty) {
+          const batch = writeBatch(db);
+          studentsSnap.forEach(studentDoc => {
+            const notifRef = doc(collection(db, 'notifications'));
+            batch.set(notifRef, {
+              studentId: studentDoc.id,
+              title: 'Attendance Session Started',
+              message: `Attendance session for ${subjectData.name} (${subjectData.code}) has started. Please scan the QR code.`,
+              type: 'session_start',
+              status: 'unread',
+              createdAt: new Date().toISOString()
+            });
+          });
+          await batch.commit();
+        }
+      } catch (err) {
+        console.error('Error sending session start notifications:', err);
+      }
 
       const session = {
         _id: docRef.id,

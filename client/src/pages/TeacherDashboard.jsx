@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 import { FiPlay, FiBook, FiSmartphone, FiUsers, FiCheck, FiX, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
@@ -13,6 +13,7 @@ const TeacherDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [deviceRequests, setDeviceRequests] = useState([]);
+  const [attendanceRequests, setAttendanceRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const navigate = useNavigate();
@@ -91,6 +92,20 @@ const TeacherDashboard = () => {
       }));
       reqs.sort((a, b) => new Date(b.requestedTime) - new Date(a.requestedTime));
       setDeviceRequests(reqs.slice(0, 5));
+
+      // 3. Fetch pending attendance requests for this teacher
+      const attReqQuery = query(
+        collection(db, 'attendanceRequests'),
+        where('teacherId', '==', user._id),
+        where('status', '==', 'Pending')
+      );
+      const attReqSnap = await getDocs(attReqQuery);
+      const attReqs = attReqSnap.docs.map(doc => ({
+        _id: doc.id,
+        ...doc.data()
+      }));
+      attReqs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setAttendanceRequests(attReqs);
     } catch (error) {
       console.error(error);
       toast.error('Failed to load dashboard data');
@@ -122,6 +137,99 @@ const TeacherDashboard = () => {
       }
     } catch (error) {
       console.error('Device action failed:', error);
+      toast.error('Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAttendanceAction = async (requestId, status) => {
+    setActionLoading(true);
+    try {
+      const requestRef = doc(db, 'attendanceRequests', requestId);
+      const requestSnap = await getDoc(requestRef);
+      if (!requestSnap.exists()) {
+        throw new Error('Request not found');
+      }
+      const reqData = requestSnap.data();
+
+      // Update the request status
+      await updateDoc(requestRef, { status });
+
+      if (status === 'Approved') {
+        // Create an entry in attendance collection as 'Present'
+        await addDoc(collection(db, 'attendance'), {
+          student: reqData.student,
+          subject: reqData.subject,
+          session: reqData.session,
+          date: reqData.date,
+          time: reqData.time,
+          status: 'Present',
+          createdAt: new Date().toISOString()
+        });
+
+        // Query student to update presentDays/totalWorkingDays
+        const studentRef = doc(db, 'students', reqData.student._id);
+        const studentSnap = await getDoc(studentRef);
+        if (studentSnap.exists()) {
+          const sData = studentSnap.data();
+          const presentDays = (sData.presentDays || 0) + 1;
+          const totalWorkingDays = (sData.totalWorkingDays || 0) + 1;
+          const attendancePercentage = totalWorkingDays > 0 ? (presentDays / totalWorkingDays) * 100 : 0;
+          await updateDoc(studentRef, {
+            presentDays,
+            totalWorkingDays,
+            attendancePercentage
+          });
+        }
+
+        toast.success('Attendance request approved!');
+      } else {
+        // Create an entry in attendance collection as 'Absent'
+        await addDoc(collection(db, 'attendance'), {
+          student: reqData.student,
+          subject: reqData.subject,
+          session: reqData.session,
+          date: reqData.date,
+          time: reqData.time,
+          status: 'Absent',
+          rejectionReason: 'Teacher rejected request',
+          createdAt: new Date().toISOString()
+        });
+
+        // Query student to update absentDays/totalWorkingDays
+        const studentRef = doc(db, 'students', reqData.student._id);
+        const studentSnap = await getDoc(studentRef);
+        if (studentSnap.exists()) {
+          const sData = studentSnap.data();
+          const absentDays = (sData.absentDays || 0) + 1;
+          const totalWorkingDays = (sData.totalWorkingDays || 0) + 1;
+          const attendancePercentage = totalWorkingDays > 0 ? ((sData.presentDays || 0) / totalWorkingDays) * 100 : 0;
+          await updateDoc(studentRef, {
+            absentDays,
+            totalWorkingDays,
+            attendancePercentage
+          });
+        }
+
+        toast.success('Attendance request rejected.');
+      }
+
+      // Send status update notification to the student
+      await addDoc(collection(db, 'notifications'), {
+        studentId: reqData.student._id,
+        title: `Attendance Request ${status}`,
+        message: `Your request for ${reqData.subject.name} has been ${status.toLowerCase()} by your teacher.`,
+        type: 'request_status',
+        status: 'unread',
+        createdAt: new Date().toISOString()
+      });
+
+      // Filter out from local state
+      setAttendanceRequests(prev => prev.filter(r => r._id !== requestId));
+      fetchDashboardData(); // Refresh summary stats
+    } catch (error) {
+      console.error('Attendance action failed:', error);
       toast.error('Action failed');
     } finally {
       setActionLoading(false);
@@ -220,6 +328,72 @@ const TeacherDashboard = () => {
                             <FiFileText />
                             <span>Export</span>
                           </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pending Attendance Requests */}
+          <div className="glass-card p-6 border border-orange-100/50">
+            <h3 className="text-lg font-bold text-slate-850 dark:text-white mb-4 flex items-center space-x-2">
+              <FiCheckCircle className="text-[#FF6B00]" />
+              <span>Pending Attendance Requests ({attendanceRequests.length})</span>
+            </h3>
+
+            {attendanceRequests.length === 0 ? (
+              <div className="text-center py-10">
+                <FiCheckCircle className="w-12 h-12 text-emerald-500/10 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-550 dark:text-slate-400">No pending attendance requests!</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Students will appear here as they scan QR codes.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-orange-50/50 border-b border-orange-100/50 dark:bg-slate-900/50 dark:border-slate-850">
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Student</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-550">Subject</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-550 text-center">Time</th>
+                      <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-550 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-orange-100/30 dark:divide-slate-800/30">
+                    {attendanceRequests.map((req) => (
+                      <tr key={req._id} className="hover:bg-orange-50/10 dark:hover:bg-slate-800/10 transition-colors">
+                        <td className="px-4 py-3 text-sm">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{req.student?.name}</div>
+                          <div className="text-[10px] font-semibold text-slate-450">{req.student?.registerNumber} • Roll: {req.student?.rollNumber || 'N/A'} • Sec {req.student?.section || 'A'}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="font-semibold text-slate-700 dark:text-slate-300">{req.subject?.name}</div>
+                          <div className="text-[10px] font-semibold text-slate-450">{req.subject?.code}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-center font-semibold text-slate-600 dark:text-slate-400">{req.time}</td>
+                        <td className="px-4 py-3 text-sm text-right space-x-2 whitespace-nowrap">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleAttendanceAction(req._id, 'Approved')}
+                            disabled={actionLoading}
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all disabled:opacity-50"
+                            title="Approve request"
+                          >
+                            <FiCheck className="w-3.5 h-3.5" />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleAttendanceAction(req._id, 'Rejected')}
+                            disabled={actionLoading}
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-[#FF3B3B] hover:bg-red-650 text-white font-bold transition-all disabled:opacity-50"
+                            title="Reject request"
+                          >
+                            <FiX className="w-3.5 h-3.5" />
+                          </motion.button>
                         </td>
                       </tr>
                     ))}

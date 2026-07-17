@@ -15,12 +15,13 @@ const ManageStudents = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [newReg, setNewReg] = useState('');
   const [newDept, setNewDept] = useState('');
   const [newYear, setNewYear] = useState(1);
+  const [newSection, setNewSection] = useState('A');
+  const [newRollNumber, setNewRollNumber] = useState('');
+  const [newPhoneNumber, setNewPhoneNumber] = useState('');
   const [newMentorId, setNewMentorId] = useState('');
-  const [newPasswordPrivacy, setNewPasswordPrivacy] = useState(true);
 
   // Editing state
   const [editId, setEditId] = useState(null);
@@ -32,6 +33,9 @@ const ManageStudents = () => {
   const [editApproved, setEditApproved] = useState(false);
   const [editPasswordPrivacy, setEditPasswordPrivacy] = useState(false);
   const [editMentorId, setEditMentorId] = useState('');
+  const [editSection, setEditSection] = useState('A');
+  const [editRollNumber, setEditRollNumber] = useState('');
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -72,6 +76,9 @@ const ManageStudents = () => {
     setEditApproved(s.deviceApproved);
     setEditPasswordPrivacy(!!s.passwordPrivacy);
     setEditMentorId(s.mentorId || '');
+    setEditSection(s.section || 'A');
+    setEditRollNumber(s.rollNumber || '');
+    setEditPhoneNumber(s.phoneNumber || '');
   };
 
   const handleCancelEdit = () => {
@@ -80,8 +87,8 @@ const ManageStudents = () => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!editName || !editEmail || !editReg || !editDept) {
-      return toast.error('All fields are required');
+    if (!editName || !editEmail || !editReg || !editDept || !editSection || !editRollNumber) {
+      return toast.error('Name, Email, Register Number, Department, Section and Roll Number are required');
     }
 
     setActionLoading(true);
@@ -93,6 +100,9 @@ const ManageStudents = () => {
         registerNumber: editReg,
         department: editDept,
         year: parseInt(editYear),
+        section: editSection,
+        rollNumber: editRollNumber,
+        phoneNumber: editPhoneNumber || null,
         deviceApproved: editApproved,
         passwordPrivacy: editPasswordPrivacy,
         mentorId: editMentorId || null,
@@ -130,19 +140,20 @@ const ManageStudents = () => {
 
   const handleAddStudent = async (e) => {
     e.preventDefault();
-    if (!newName || !newEmail || !newPassword || !newReg || !newDept) {
-      return toast.error('All fields are required');
+    if (!newName || !newEmail || !newReg || !newDept || !newSection || !newRollNumber) {
+      return toast.error('Name, Email, Register Number, Department, Section and Roll Number are required');
     }
     setActionLoading(true);
     try {
       const res = await adminRegisterStudent({
         name: newName,
         email: newEmail,
-        password: newPassword,
         registerNumber: newReg,
         department: newDept,
         year: parseInt(newYear),
-        passwordPrivacy: newPasswordPrivacy,
+        section: newSection,
+        rollNumber: newRollNumber,
+        phoneNumber: newPhoneNumber || null,
         mentorId: newMentorId || (user?.role === 'teacher' ? user._id : '')
       });
 
@@ -150,12 +161,13 @@ const ManageStudents = () => {
         toast.success(res.message);
         setNewName('');
         setNewEmail('');
-        setNewPassword('');
         setNewReg('');
         setNewDept('');
         setNewYear(1);
+        setNewSection('A');
+        setNewRollNumber('');
+        setNewPhoneNumber('');
         setNewMentorId('');
-        setNewPasswordPrivacy(true);
         setShowAddForm(false);
         fetchStudents();
       } else {
@@ -279,17 +291,6 @@ const ManageStudents = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Password</label>
-              <input
-                type="password"
-                placeholder="Password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="glass-input w-full text-xs"
-                required
-              />
-            </div>
-            <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Department</label>
               <input
                 type="text"
@@ -313,6 +314,40 @@ const ManageStudents = () => {
                 <option value={3}>3rd Year</option>
                 <option value={4}>4th Year</option>
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Section</label>
+              <input
+                type="text"
+                placeholder="e.g. A"
+                value={newSection}
+                onChange={(e) => setNewSection(e.target.value)}
+                className="glass-input w-full text-xs"
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Roll Number</label>
+              <input
+                type="text"
+                placeholder="e.g. 21CS01"
+                value={newRollNumber}
+                onChange={(e) => setNewRollNumber(e.target.value)}
+                className="glass-input w-full text-xs"
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Phone Number (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. +91 9876543210"
+                value={newPhoneNumber}
+                onChange={(e) => setNewPhoneNumber(e.target.value)}
+                className="glass-input w-full text-xs"
+              />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-550 dark:text-slate-455">Assign Mentor</label>
@@ -386,6 +421,7 @@ const ManageStudents = () => {
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
                             className="glass-input w-full text-sm py-1 px-2"
+                            placeholder="Name"
                             required
                           />
                           <input
@@ -393,6 +429,15 @@ const ManageStudents = () => {
                             value={editReg}
                             onChange={(e) => setEditReg(e.target.value)}
                             className="glass-input w-full text-xs py-1 px-2"
+                            placeholder="Reg No"
+                            required
+                          />
+                          <input
+                            type="text"
+                            value={editRollNumber}
+                            onChange={(e) => setEditRollNumber(e.target.value)}
+                            className="glass-input w-full text-xs py-1 px-2"
+                            placeholder="Roll No"
                             required
                           />
                         </td>
@@ -402,6 +447,7 @@ const ManageStudents = () => {
                             value={editEmail}
                             onChange={(e) => setEditEmail(e.target.value)}
                             className="glass-input w-full text-sm py-1 px-2"
+                            placeholder="Email"
                             required
                           />
                         </td>
@@ -411,6 +457,7 @@ const ManageStudents = () => {
                             value={editDept}
                             onChange={(e) => setEditDept(e.target.value)}
                             className="glass-input w-full text-xs py-1 px-2"
+                            placeholder="Dept"
                             required
                           />
                           <select
@@ -423,6 +470,14 @@ const ManageStudents = () => {
                             <option value={3}>Year 3</option>
                             <option value={4}>Year 4</option>
                           </select>
+                          <input
+                            type="text"
+                            value={editSection}
+                            onChange={(e) => setEditSection(e.target.value)}
+                            className="glass-input w-full text-xs py-1 px-2"
+                            placeholder="Sec"
+                            required
+                          />
                         </td>
                         <td className="px-5 py-3.5 text-sm">
                           <select
@@ -485,12 +540,12 @@ const ManageStudents = () => {
                         <td className="px-5 py-4 text-sm font-bold text-slate-800 dark:text-slate-200">
                           <div>
                             <span>{s.name}</span>
-                            <span className="text-[10px] font-semibold text-slate-450 block">{s.registerNumber}</span>
+                            <span className="text-[10px] font-semibold text-slate-450 block">{s.registerNumber} {s.rollNumber ? `• Roll: ${s.rollNumber}` : ''}</span>
                           </div>
                         </td>
                         <td className="px-5 py-4 text-sm font-semibold text-slate-500 dark:text-slate-400">{s.email}</td>
                         <td className="px-5 py-4 text-sm font-medium text-slate-650 dark:text-slate-400">
-                          {s.department} • Yr {s.year}
+                          {s.department} • Yr {s.year} {s.section ? `(Sec ${s.section})` : ''}
                         </td>
                         <td className="px-5 py-4 text-sm font-medium text-slate-650 dark:text-slate-400">
                           {mentors.find(m => m._id === s.mentorId)?.name || 'None Assigned'}

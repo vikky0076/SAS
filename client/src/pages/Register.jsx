@@ -15,33 +15,25 @@ const GoogleIcon = () => (
 );
 
 const Register = () => {
-  const [role, setRole] = useState('student');
+  const [role, setRole] = useState('teacher');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [department, setDepartment] = useState('');
-
-  // Student specific
-  const [registerNumber, setRegisterNumber] = useState('');
-  const [year, setYear] = useState(1);
-  const [mentorId, setMentorId] = useState('');
   
   // Teacher specific
   const [adminSecret, setAdminSecret] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const { registerStudent, registerTeacher, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
+  const { registerTeacher, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
   const navigate = useNavigate();
 
   // Complete Profile States (for first-time Google logins)
   const [googleUser, setGoogleUser] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [googleRole, setGoogleRole] = useState('student');
-  const [googleRegNo, setGoogleRegNo] = useState('');
+  const [googleRole, setGoogleRole] = useState('teacher');
   const [googleDept, setGoogleDept] = useState('');
-  const [googleYear, setGoogleYear] = useState(1);
   const [googleAdminSecret, setGoogleAdminSecret] = useState('');
-  const [googleMentorId, setGoogleMentorId] = useState('');
   const [completeLoading, setCompleteLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -51,31 +43,13 @@ const Register = () => {
     }
 
     setLoading(true);
-    let result;
-
-    if (role === 'student') {
-      if (!registerNumber || !year) {
-        setLoading(false);
-        return toast.error('Please fill in student register number and year');
-      }
-      result = await registerStudent({
-        name,
-        email,
-        registerNumber,
-        password,
-        department,
-        year: parseInt(year),
-        mentorId: null
-      });
-    } else {
-      result = await registerTeacher({
-        name,
-        email,
-        password,
-        department,
-        adminSecret // Optional
-      });
-    }
+    const result = await registerTeacher({
+      name,
+      email,
+      password,
+      department,
+      adminSecret // Optional
+    });
 
     setLoading(false);
 
@@ -188,37 +162,11 @@ const Register = () => {
         </div>
 
         <div className="glass-card p-8 space-y-6 glow-orange-border">
-          {/* Role Toggle Selector */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
-            <button
-              type="button"
-              onClick={() => setRole('student')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                role === 'student'
-                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
-                  : 'text-slate-500'
-              }`}
-            >
-              Student
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('teacher')}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-                role === 'teacher'
-                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
-                  : 'text-slate-500'
-              }`}
-            >
-              Teacher / Admin
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* General Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Full Name</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-bold">Full Name</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -232,7 +180,7 @@ const Register = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Email Address</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-bold">Email Address</label>
                 <div className="relative">
                   <input
                     type="email"
@@ -248,7 +196,7 @@ const Register = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Password</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-bold">Password</label>
                 <div className="relative">
                   <input
                     type="password"
@@ -262,7 +210,7 @@ const Register = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Department</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-bold">Department</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -276,68 +224,19 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Dynamic Role Fields */}
-            <AnimatePresence mode="wait">
-              {role === 'student' ? (
-                <motion.div
-                  key="student-fields"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1"
-                >
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Register Number</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="e.g. 21102345"
-                        value={registerNumber}
-                        onChange={(e) => setRegisterNumber(e.target.value)}
-                        className="glass-input w-full text-sm"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Year of Study</label>
-                    <div className="relative">
-                      <select
-                        value={year}
-                        onChange={(e) => setYear(e.target.value)}
-                        className="glass-input w-full text-sm appearance-none py-2"
-                        required
-                      >
-                        <option value={1}>1st Year</option>
-                        <option value={2}>2nd Year</option>
-                        <option value={3}>3rd Year</option>
-                        <option value={4}>4th Year</option>
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="teacher-fields"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="space-y-1 pt-1"
-                >
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Admin Passcode (Optional)</label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      placeholder="Only if registering as Admin"
-                      value={adminSecret}
-                      onChange={(e) => setAdminSecret(e.target.value)}
-                      className="glass-input w-full text-sm"
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Admin Passcode */}
+            <div className="space-y-1 pt-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 font-bold">Admin Passcode (Optional)</label>
+              <div className="relative">
+                <input
+                  type="password"
+                  placeholder="Only if registering as Admin"
+                  value={adminSecret}
+                  onChange={(e) => setAdminSecret(e.target.value)}
+                  className="glass-input w-full text-sm"
+                />
+              </div>
+            </div>
 
             <motion.button
               whileHover={{ scale: 1.02, boxShadow: "0 0 15px rgba(255, 107, 0, 0.4)" }}

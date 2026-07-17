@@ -9,7 +9,8 @@ import {
   confirmPasswordReset,
   GoogleAuthProvider,
   signInWithPopup,
-  getAuth
+  getAuth,
+  signInWithCustomToken
 } from 'firebase/auth';
 import { 
   doc, 
@@ -334,51 +335,7 @@ export const AuthProvider = ({ children }) => {
 
   // Student register handler
   const registerStudent = async (studentData) => {
-    try {
-      const { email, password, name, registerNumber, department, year, mentorId } = studentData;
-      
-      // First, create the user inside Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-
-      // Save student profile document in Firestore
-      await setDoc(doc(db, 'students', uid), {
-        name,
-        registerNumber,
-        email,
-        department,
-        year: parseInt(year),
-        role: 'student',
-        trustedDeviceToken: null,
-        deviceApproved: false,
-        attendancePercentage: 0,
-        presentDays: 0,
-        absentDays: 0,
-        totalWorkingDays: 0,
-        passwordPrivacy: false,
-        mentorId: mentorId || null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      // Firebase automatically signs in the user. Log them out to preserve UI manual login flow.
-      await signOut(auth);
-
-      return { success: true, message: 'Student registered successfully! Please wait for your mentor or admin to set the password privacy button.' };
-    } catch (error) {
-      console.error('Student registration error:', error);
-      let message = 'Registration failed. Please try again.';
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'Email already in use.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password is too weak.';
-      } else if (error.code === 'auth/configuration-not-found') {
-        message = 'Email/Password registration is not enabled in the Firebase Console. Please enable it under Build > Authentication > Sign-in method.';
-      } else if (error.message) {
-        message = error.message;
-      }
-      return { success: false, message };
-    }
+    return { success: false, message: 'Student self-registration is disabled. Please contact your Mentor or Admin to create an account.' };
   };
 
   // Secondary auth helper to allow registering users without logging out
@@ -396,10 +353,13 @@ export const AuthProvider = ({ children }) => {
   // Student register handler by mentor/admin
   const adminRegisterStudent = async (studentData) => {
     try {
-      const { email, password, name, registerNumber, department, year, passwordPrivacy, mentorId } = studentData;
+      const { email, name, registerNumber, department, year, mentorId, section, rollNumber, phoneNumber } = studentData;
       
+      // Generate a secure random password internally
+      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).toUpperCase().slice(-4) + '!1a';
+
       const secAuth = getSecondaryAuth();
-      const userCredential = await createUserWithEmailAndPassword(secAuth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(secAuth, email, tempPassword);
       const uid = userCredential.user.uid;
       
       // Sign out secondary auth immediately to clean up state
@@ -409,17 +369,22 @@ export const AuthProvider = ({ children }) => {
       await setDoc(doc(db, 'students', uid), {
         name,
         registerNumber,
-        email,
+        email: email.toLowerCase().trim(),
         department,
         year: parseInt(year),
+        section: section || 'A',
+        rollNumber: rollNumber || '',
+        phoneNumber: phoneNumber || null,
         role: 'student',
+        status: 'Active',
+        accountStatus: 'Active',
         trustedDeviceToken: null,
         deviceApproved: false,
         attendancePercentage: 0,
         presentDays: 0,
         absentDays: 0,
         totalWorkingDays: 0,
-        passwordPrivacy: !!passwordPrivacy,
+        passwordPrivacy: true,
         mentorId: mentorId || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -431,8 +396,6 @@ export const AuthProvider = ({ children }) => {
       let message = 'Registration failed. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         message = 'Email already in use.';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Password is too weak.';
       } else if (error.message) {
         message = error.message;
       }
@@ -715,6 +678,99 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Student login via Custom Token (passwordless)
+  const studentLogin = async (email, nameOrReg) => {
+    try {
+      const response = await fetch('/api/student-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          registerNumberOrName: nameOrReg.trim()
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Authentication failed');
+      }
+
+      // Log in with Firebase Custom Token
+      const userCredential = await signInWithCustomToken(auth, resData.token);
+      const uid = userCredential.user.uid;
+
+      // Fetch student data from Firestore to verify account
+      const studentRef = doc(db, 'students', uid);
+      const studentSnap = await getDoc(studentRef);
+      if (!studentSnap.exists()) {
+        await signOut(auth);
+        throw new Error('Student profile not found in database.');
+      }
+
+      const studentData = studentSnap.data();
+      const isActive = (studentData.status === 'Active' || studentData.accountStatus === 'Active');
+      if (!isActive) {
+        await signOut(auth);
+        throw new Error('Your account is inactive.');
+      }
+
+      const loggedUser = { _id: uid, ...studentData };
+
+      // Device binding / check logic
+      const localDeviceToken = getOrGenerateDeviceToken();
+      if (!studentData.trustedDeviceToken) {
+        await updateDoc(studentRef, {
+          trustedDeviceToken: localDeviceToken,
+          deviceApproved: true
+        });
+        loggedUser.trustedDeviceToken = localDeviceToken;
+        loggedUser.deviceApproved = true;
+        loggedUser.deviceMismatch = false;
+      } else {
+        if (localDeviceToken !== studentData.trustedDeviceToken) {
+          loggedUser.deviceMismatch = true;
+          loggedUser.deviceApproved = false;
+
+          // Auto-create a pending device change request if one doesn't exist
+          const requestsQuery = query(
+            collection(db, 'deviceRequests'),
+            where('student._id', '==', uid),
+            where('status', '==', 'Pending')
+          );
+          const requestsSnap = await getDocs(requestsQuery);
+          if (requestsSnap.empty) {
+            await addDoc(collection(db, 'deviceRequests'), {
+              student: {
+                _id: uid,
+                name: studentData.name,
+                email: studentData.email,
+                registerNumber: studentData.registerNumber,
+                department: studentData.department,
+                year: studentData.year
+              },
+              oldToken: studentData.trustedDeviceToken,
+              newToken: localDeviceToken,
+              status: 'Pending',
+              requestedTime: new Date().toISOString()
+            });
+          }
+        } else {
+          loggedUser.deviceMismatch = false;
+          loggedUser.deviceApproved = studentData.deviceApproved;
+        }
+      }
+
+      setUser(loggedUser);
+      return { success: true, user: loggedUser };
+
+    } catch (error) {
+      console.error('Student custom login error:', error);
+      return { success: false, message: error.message || 'Login failed.' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -724,6 +780,7 @@ export const AuthProvider = ({ children }) => {
         darkMode,
         toggleDarkMode,
         login,
+        studentLogin,
         registerStudent,
         adminRegisterStudent,
         registerTeacher,

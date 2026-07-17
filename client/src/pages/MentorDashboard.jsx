@@ -25,6 +25,8 @@ const MentorDashboard = () => {
   const [allAttendance, setAllAttendance] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [todayRequests, setTodayRequests] = useState([]);
+  const [todayAttendance, setTodayAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Search, Filters & Modal States
@@ -76,8 +78,34 @@ const MentorDashboard = () => {
           .map(doc => ({ id: doc.id, ...doc.data() }))
           .filter(log => studentIds.includes(log.student?._id));
         setAllAttendance(attendanceList);
+
+        // 5. Fetch today's attendance requests and logs
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+
+        const todayReqQuery = query(
+          collection(db, 'attendanceRequests'),
+          where('createdAt', '>=', startOfToday.toISOString())
+        );
+        const todayReqSnap = await getDocs(todayReqQuery);
+        const reqList = todayReqSnap.docs
+          .map(doc => ({ _id: doc.id, ...doc.data() }))
+          .filter(r => studentIds.includes(r.student?._id));
+        setTodayRequests(reqList);
+
+        const todayAttQuery = query(
+          collection(db, 'attendance'),
+          where('createdAt', '>=', startOfToday.toISOString())
+        );
+        const todayAttSnap = await getDocs(todayAttQuery);
+        const attList = todayAttSnap.docs
+          .map(doc => ({ _id: doc.id, ...doc.data() }))
+          .filter(a => studentIds.includes(a.student?._id));
+        setTodayAttendance(attList);
       } else {
         setAllAttendance([]);
+        setTodayRequests([]);
+        setTodayAttendance([]);
       }
     } catch (error) {
       console.error('Error fetching mentor data:', error);
@@ -596,6 +624,89 @@ const MentorDashboard = () => {
           </div>
           <div className="p-3 bg-rose-500/10 text-rose-600 dark:text-rose-450 rounded-xl">
             <FiAlertTriangle className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Today's Live Attendance Workflow Card */}
+      <div className="glass-card p-6 border border-orange-100/50">
+        <h3 className="text-lg font-bold text-slate-805 mb-4 flex items-center space-x-2">
+          <FiCalendar className="text-[#FF6B00]" />
+          <span>Today's Attendance Request & Roll Overview</span>
+        </h3>
+
+        {/* Requests Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="p-4 bg-yellow-55/10 border border-yellow-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-bold">Pending Requests</span>
+            <span className="text-2xl font-black text-yellow-650 block mt-1">
+              {todayRequests.filter(r => r.status === 'Pending').length}
+            </span>
+          </div>
+          <div className="p-4 bg-emerald-55/10 border border-emerald-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-bold">Approved Requests</span>
+            <span className="text-2xl font-black text-emerald-605 block mt-1">
+              {todayRequests.filter(r => r.status === 'Approved').length}
+            </span>
+          </div>
+          <div className="p-4 bg-rose-55/10 border border-rose-100 rounded-xl text-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block font-bold">Rejected Requests</span>
+            <span className="text-2xl font-black text-rose-600 block mt-1">
+              {todayRequests.filter(r => r.status === 'Rejected').length}
+            </span>
+          </div>
+        </div>
+
+        {/* Present/Absent Lists */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Present list */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center space-x-1.5 font-bold">
+              <FiUserCheck className="text-emerald-500" />
+              <span>Present Today ({todayAttendance.filter(a => a.status === 'Present').length})</span>
+            </h4>
+            <div className="bg-slate-50/50 rounded-xl border border-slate-200/50 p-3 max-h-60 overflow-y-auto space-y-2">
+              {todayAttendance.filter(a => a.status === 'Present').length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center font-semibold">No students present yet today.</p>
+              ) : (
+                todayAttendance.filter(a => a.status === 'Present').map((log) => (
+                  <div key={log._id} className="flex justify-between items-center text-xs p-2 bg-white rounded-lg border border-slate-100">
+                    <div>
+                      <span className="font-bold text-slate-800">{log.student?.name}</span>
+                      <span className="text-[10px] text-slate-400 block font-semibold">{log.student?.registerNumber}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-450 font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">
+                      Present • {log.time || 'N/A'}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Absent list */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center space-x-1.5 font-bold">
+              <FiUserX className="text-rose-500" />
+              <span>Absent Today ({todayAttendance.filter(a => a.status === 'Absent').length})</span>
+            </h4>
+            <div className="bg-slate-50/50 rounded-xl border border-slate-200/50 p-3 max-h-60 overflow-y-auto space-y-2">
+              {todayAttendance.filter(a => a.status === 'Absent').length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center font-semibold">No students absent today.</p>
+              ) : (
+                todayAttendance.filter(a => a.status === 'Absent').map((log) => (
+                  <div key={log._id} className="flex justify-between items-center text-xs p-2 bg-white rounded-lg border border-slate-100">
+                    <div>
+                      <span className="font-bold text-slate-800">{log.student?.name}</span>
+                      <span className="text-[10px] text-slate-450 block font-semibold">{log.student?.registerNumber}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded">
+                      Absent
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -146,15 +146,25 @@ const ScanQR = () => {
         throw new Error('Invalid or expired QR Code. Please scan the current live code.');
       }
 
-      // 4. Check for duplicate attendance
-      const duplicateQuery = query(
+      // 4. Check for duplicate requests or attendance entries
+      const duplicateRequestQuery = query(
+        collection(db, 'attendanceRequests'),
+        where('student._id', '==', user._id),
+        where('session', '==', sessionId)
+      );
+      const duplicateRequestSnap = await getDocs(duplicateRequestQuery);
+      if (!duplicateRequestSnap.empty) {
+        throw new Error('You have already submitted an attendance request for this class.');
+      }
+
+      const duplicateAttendanceQuery = query(
         collection(db, 'attendance'),
         where('student._id', '==', user._id),
         where('session', '==', sessionId)
       );
-      const duplicateSnap = await getDocs(duplicateQuery);
-      if (!duplicateSnap.empty) {
-        throw new Error('Attendance already marked for this class.');
+      const duplicateAttendanceSnap = await getDocs(duplicateAttendanceQuery);
+      if (!duplicateAttendanceSnap.empty) {
+        throw new Error('Attendance is already marked for this class.');
       }
 
       // Format current time HH:MM
@@ -164,28 +174,42 @@ const ScanQR = () => {
         minute: '2-digit'
       });
 
-      // 5. Create attendance entry
-      await addDoc(collection(db, 'attendance'), {
+      // 5. Create pending attendance request
+      const reqRef = await addDoc(collection(db, 'attendanceRequests'), {
         student: {
           _id: user._id,
           name: studentData.name,
           registerNumber: studentData.registerNumber,
           department: studentData.department,
-          year: studentData.year
+          year: studentData.year,
+          section: studentData.section || 'A',
+          rollNumber: studentData.rollNumber || ''
         },
         subject: sessionData.subject,
         session: sessionId,
+        teacherId: sessionData.teacherId || '',
         date: now.toISOString(),
         time: timeString,
-        status: 'Present',
+        status: 'Pending',
+        deviceToken: localDeviceToken,
         createdAt: now.toISOString()
       });
 
-      // 6. Update student score
-      await recomputeAttendancePercentage(user._id);
-      await fetchUserProfile(); // sync state
+      // 6. Create notification for the teacher
+      if (sessionData.teacherId) {
+        await addDoc(collection(db, 'notifications'), {
+          teacherId: sessionData.teacherId,
+          studentId: user._id,
+          requestId: reqRef.id,
+          title: 'New Attendance Request',
+          message: `${studentData.name} (${studentData.registerNumber}) has requested attendance for ${sessionData.subject.name}.`,
+          type: 'attendance_request',
+          status: 'unread',
+          createdAt: now.toISOString()
+        });
+      }
 
-      toast.success('Attendance marked successfully!');
+      toast.success('Attendance request submitted for approval!');
       
       // Delay navigation
       setTimeout(() => {

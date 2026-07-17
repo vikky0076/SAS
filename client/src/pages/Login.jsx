@@ -18,8 +18,12 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
+  const { login, studentLogin, loginWithGoogle, registerGoogleUser, mentors } = useAuth();
   const navigate = useNavigate();
+
+  // Custom states for Student Login
+  const [loginRole, setLoginRole] = useState('student');
+  const [nameOrReg, setNameOrReg] = useState('');
 
   // Complete Profile States (for first-time Google logins)
   const [googleUser, setGoogleUser] = useState(null);
@@ -34,22 +38,39 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      return toast.error('Please enter all fields');
-    }
-
-    setLoading(true);
-    const result = await login(email, password);
-    setLoading(false);
-
-    if (result.success) {
-      toast.success(`Welcome back, ${result.user.name}!`);
-      if (result.user.role === 'student' && result.user.deviceMismatch) {
-        toast.error('New device detected! Attendance is locked until approved.', { duration: 6000 });
+    if (loginRole === 'student') {
+      if (!email || !nameOrReg) {
+        return toast.error('Please enter all fields');
       }
-      navigate('/dashboard');
+
+      setLoading(true);
+      const result = await studentLogin(email, nameOrReg);
+      setLoading(false);
+
+      if (result.success) {
+        toast.success(`Welcome back, ${result.user.name}!`);
+        if (result.user.deviceMismatch) {
+          toast.error('New device detected! Attendance is locked until approved.', { duration: 6000 });
+        }
+        navigate('/dashboard');
+      } else {
+        toast.error(result.message);
+      }
     } else {
-      toast.error(result.message);
+      if (!email || !password) {
+        return toast.error('Please enter all fields');
+      }
+
+      setLoading(true);
+      const result = await login(email, password);
+      setLoading(false);
+
+      if (result.success) {
+        toast.success(`Welcome back, ${result.user.name}!`);
+        navigate('/dashboard');
+      } else {
+        toast.error(result.message);
+      }
     }
   };
 
@@ -162,10 +183,38 @@ const Login = () => {
         </div>
 
         <div className="glass-card p-8 space-y-6 glow-orange-border">
-          {/* Email / Password Form */}
+          {/* Role Tab Selector */}
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/50">
+            <button
+              type="button"
+              onClick={() => setLoginRole('student')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                loginRole === 'student'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
+                  : 'text-slate-500'
+              }`}
+            >
+              Student Login
+            </button>
+            <button
+              type="button"
+              onClick={() => setLoginRole('teacher')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                loginRole === 'teacher'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF3B3B] text-white shadow'
+                  : 'text-slate-500'
+              }`}
+            >
+              Faculty / Admin
+            </button>
+          </div>
+
+          {/* Email / Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Email Address</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-600 font-bold">
+                {loginRole === 'student' ? 'College Email' : 'Email Address'}
+              </label>
               <div className="relative">
                 <input
                   type="email"
@@ -178,22 +227,38 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">Password</label>
-                <Link to="/forgot-password" className="text-xs font-bold text-[#FF6B00] hover:underline">Forgot password?</Link>
+            {loginRole === 'student' ? (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 font-bold">Student Name or Register Number</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Enter your full name or register number"
+                    value={nameOrReg}
+                    onChange={(e) => setNameOrReg(e.target.value)}
+                    className="glass-input w-full"
+                    required
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="glass-input w-full"
-                  required
-                />
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 font-bold">Password</label>
+                  <Link to="/forgot-password" className="text-xs font-bold text-[#FF6B00] hover:underline">Forgot password?</Link>
+                </div>
+                <div className="relative">
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="glass-input w-full"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <motion.button
               whileHover={{ scale: 1.02, boxShadow: "0 0 15px rgba(255, 107, 0, 0.4)" }}
@@ -227,7 +292,7 @@ const Login = () => {
           </motion.button>
 
           <div className="mt-6 pt-6 border-t border-slate-200/50 text-center">
-            <span className="text-sm font-medium text-slate-500">Don't have an account? </span>
+            <span className="text-sm font-medium text-slate-500">Faculty Member? </span>
             <Link to="/register" className="text-sm font-bold text-[#FF6B00] hover:underline">Register here</Link>
           </div>
         </div>
