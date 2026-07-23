@@ -1,0 +1,42 @@
+[debug] [2026-07-23T06:19:47.440Z] ----------------------------------------------------------------------
+[debug] [2026-07-23T06:19:47.445Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js deploy --only firestore:rules
+[debug] [2026-07-23T06:19:47.445Z] CLI Version:   15.24.0
+[debug] [2026-07-23T06:19:47.446Z] Platform:      win32
+[debug] [2026-07-23T06:19:47.446Z] Node Version:  v22.22.0
+[debug] [2026-07-23T06:19:47.447Z] Detected Agent: antigravity
+[debug] [2026-07-23T06:19:47.447Z] Time:          Thu Jul 23 2026 11:49:47 GMT+0530 (India Standard Time)
+[debug] [2026-07-23T06:19:47.447Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-23T06:19:47.467Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-07-23T06:19:47.743Z] Error: Cannot find module 'lodash/defaults'
+Require stack:
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\archiver-utils\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\archiver\lib\core.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\archiver\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\archiveDirectory.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\extensions\extensionsHelper.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\deploy\extensions\planner.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\extensions\manifest.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\emulator\functionsEmulatorShared.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\frameworks\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\deploy\hosting\prepare.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\deploy\hosting\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\deploy\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\checkValidTargetFilters.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\commands\deploy.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\commands\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\index.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\cli.js
+- C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\firebase-tools\lib\bin\firebase.js
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (C:\Users\vigne\AppData\Local\npm-cache\_npx\7750544ccf494d8b\node_modules\archiver-utils\index.js:13:16)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+[error] 
+[error] Error: An unexpected error has occurred.

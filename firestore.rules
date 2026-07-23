@@ -9,17 +9,17 @@ service cloud.firestore {
     
     // Helper: Check if user document exists in admins collection
     function isAdmin() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isAuthenticated() && exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
     
     // Helper: Check if user document exists in teachers collection
     function isTeacher() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      return isAuthenticated() && exists(/databases/(default)/documents/teachers/$(request.auth.uid));
     }
     
     // Helper: Check if user document exists in students collection
     function isStudent() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/students/$(request.auth.uid));
+      return isAuthenticated() && exists(/databases/(default)/documents/students/$(request.auth.uid));
     }
 
     // Students Collection

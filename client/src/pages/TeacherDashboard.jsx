@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
+import { db, auth } from '../firebase/firebase';
 import { FiPlay, FiBook, FiSmartphone, FiUsers, FiCheck, FiX, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { StatsSkeleton, TableSkeleton } from '../components/LoadingSkeleton';
@@ -117,27 +117,27 @@ const TeacherDashboard = () => {
   const handleDeviceAction = async (requestId, status) => {
     setActionLoading(true);
     try {
-      const requestRef = doc(db, 'deviceRequests', requestId);
-      const requestSnap = await getDoc(requestRef);
-      if (requestSnap.exists()) {
-        const requestData = requestSnap.data();
-        await updateDoc(requestRef, { status });
-        
-        if (status === 'Approved') {
-          const studentRef = doc(db, 'students', requestData.student._id);
-          await updateDoc(studentRef, {
-            trustedDeviceToken: requestData.newToken,
-            deviceApproved: true
-          });
-        }
-        
-        toast.success(`Device request ${status.toLowerCase()} successfully!`);
-        setDeviceRequests(deviceRequests.filter(r => r._id !== requestId));
-        fetchDashboardData(); // Refresh stats and list
+      if (!auth.currentUser) throw new Error("User is not authenticated");
+      const idToken = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/approve-device', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ requestId, status })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message);
       }
+      
+      toast.success(`Device request ${status.toLowerCase()} successfully!`);
+      setDeviceRequests(deviceRequests.filter(r => r._id !== requestId));
+      fetchDashboardData(); // Refresh stats and list
     } catch (error) {
       console.error('Device action failed:', error);
-      toast.error('Action failed');
+      toast.error(error.message || 'Action failed');
     } finally {
       setActionLoading(false);
     }

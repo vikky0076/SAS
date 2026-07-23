@@ -33,6 +33,8 @@ const Register = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [googleRole, setGoogleRole] = useState('teacher');
   const [googleDept, setGoogleDept] = useState('');
+  const [googleRegNo, setGoogleRegNo] = useState('');
+  const [googleYear, setGoogleYear] = useState(1);
   const [googleAdminSecret, setGoogleAdminSecret] = useState('');
   const [completeLoading, setCompleteLoading] = useState(false);
 

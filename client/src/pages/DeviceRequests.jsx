@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
+import { db, auth } from '../firebase/firebase';
 import { toast } from 'react-hot-toast';
 import { FiSmartphone, FiCheck, FiX, FiSearch, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import { TableSkeleton } from '../components/LoadingSkeleton';
@@ -46,26 +46,26 @@ const DeviceRequests = () => {
 
     setActionLoading(true);
     try {
-      const requestRef = doc(db, 'deviceRequests', id);
-      const requestSnap = await getDoc(requestRef);
-      if (requestSnap.exists()) {
-        const requestData = requestSnap.data();
-        await updateDoc(requestRef, { status });
-
-        if (status === 'Approved') {
-          const studentRef = doc(db, 'students', requestData.student._id);
-          await updateDoc(studentRef, {
-            trustedDeviceToken: requestData.newToken,
-            deviceApproved: true
-          });
-        }
-
-        toast.success(`Request ${status.toLowerCase()} successfully!`);
-        setRequests(requests.filter(r => r._id !== id));
+      if (!auth.currentUser) throw new Error("User is not authenticated");
+      const idToken = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/approve-device', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ requestId: id, status })
+      });
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.message);
       }
+
+      toast.success(`Request ${status.toLowerCase()} successfully!`);
+      setRequests(requests.filter(r => r._id !== id));
     } catch (error) {
       console.error('Device request update error:', error);
-      toast.error('Failed to update request');
+      toast.error(error.message || 'Failed to update request');
     } finally {
       setActionLoading(false);
     }

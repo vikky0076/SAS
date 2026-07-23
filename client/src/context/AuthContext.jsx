@@ -39,6 +39,10 @@ export const AuthProvider = ({ children }) => {
   });
 
   const fetchMentors = async () => {
+    if (!auth.currentUser) {
+      setMentors([]);
+      return;
+    }
     try {
       const snap = await getDocs(collection(db, 'mentors'));
       const list = snap.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
