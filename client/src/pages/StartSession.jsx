@@ -734,7 +734,7 @@ const StartSession = () => {
                 <button
                   type="submit"
                   disabled={starting}
-                  className="w-full py-3 rounded-xl bg-primary-500 hover:bg-primary-650 text-white font-bold text-sm shadow-lg shadow-primary-500/10 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 mt-4"
+                  className="w-full py-3 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-bold text-sm shadow-lg shadow-primary-500/10 flex items-center justify-center space-x-2 transition-all disabled:opacity-50 mt-4"
                 >
                   <FiPlay />
                   <span>{starting ? 'Starting Session...' : 'Launch Attendance Session'}</span>

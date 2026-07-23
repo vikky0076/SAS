@@ -242,7 +242,7 @@ const ManageSubjects = () => {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="w-full py-2.5 rounded-lg bg-primary-500 hover:bg-primary-650 text-white font-bold text-xs shadow-md shadow-primary-500/10 transition-all disabled:opacity-50"
+                  className="w-full py-2.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white font-bold text-xs shadow-md shadow-primary-500/10 transition-all disabled:opacity-50"
                 >
                   {formLoading ? 'Creating...' : 'Add Subject'}
                 </button>

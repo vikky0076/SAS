@@ -389,7 +389,7 @@ const TeacherDashboard = () => {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleAttendanceAction(req._id, 'Rejected')}
                             disabled={actionLoading}
-                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-[#FF3B3B] hover:bg-red-650 text-white font-bold transition-all disabled:opacity-50"
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg bg-[#FF3B3B] hover:bg-red-600 text-white font-bold transition-all disabled:opacity-50"
                             title="Reject request"
                           >
                             <FiX className="w-3.5 h-3.5" />
@@ -442,7 +442,7 @@ const TeacherDashboard = () => {
                         whileTap={{ scale: 0.98 }}
                         onClick={() => handleDeviceAction(req._id, 'Rejected')}
                         disabled={actionLoading}
-                        className="flex-1 py-1.5 rounded-lg bg-[#FF3B3B] hover:bg-red-650 text-white font-bold text-xs flex items-center justify-center space-x-1 shadow-sm transition-all disabled:opacity-50"
+                        className="flex-1 py-1.5 rounded-lg bg-[#FF3B3B] hover:bg-red-600 text-white font-bold text-xs flex items-center justify-center space-x-1 shadow-sm transition-all disabled:opacity-50"
                       >
                         <FiX />
                         <span>Reject</span>

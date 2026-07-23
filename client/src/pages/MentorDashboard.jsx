@@ -549,7 +549,7 @@ const MentorDashboard = () => {
           <button
             onClick={() => exportOverallReport('pdf')}
             disabled={exportLoading}
-            className="px-3 py-1.5 bg-rose-650 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center space-x-1.5"
+            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center space-x-1.5"
             title="Download Overall PDF"
           >
             <FiDownload />
@@ -558,7 +558,7 @@ const MentorDashboard = () => {
           <button
             onClick={() => exportOverallReport('excel')}
             disabled={exportLoading}
-            className="px-3 py-1.5 bg-emerald-650 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center space-x-1.5"
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center space-x-1.5"
             title="Download Overall Excel"
           >
             <FiDownload />
@@ -834,14 +834,14 @@ const MentorDashboard = () => {
             <button
               onClick={() => exportWarningReport('pdf')}
               disabled={lowAttendanceStudents.length === 0}
-              className="flex-1 py-1.5 bg-rose-650 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow text-center disabled:opacity-50"
+              className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition-all shadow text-center disabled:opacity-50"
             >
               Export PDF
             </button>
             <button
               onClick={() => exportWarningReport('excel')}
               disabled={lowAttendanceStudents.length === 0}
-              className="flex-1 py-1.5 bg-slate-650 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-all shadow text-center disabled:opacity-50"
+              className="flex-1 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold transition-all shadow text-center disabled:opacity-50"
             >
               Export Excel
             </button>

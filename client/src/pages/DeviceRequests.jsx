@@ -178,7 +178,7 @@ const DeviceRequests = () => {
                         <button
                           onClick={() => handleAction(req._id, 'Approved')}
                           disabled={actionLoading}
-                          className="px-2.5 py-1.5 rounded bg-emerald-500 hover:bg-emerald-650 text-white font-bold text-xs inline-flex items-center space-x-1 shadow-sm transition-all disabled:opacity-50"
+                          className="px-2.5 py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs inline-flex items-center space-x-1 shadow-sm transition-all disabled:opacity-50"
                         >
                           <FiCheck />
                           <span>Approve</span>
@@ -186,7 +186,7 @@ const DeviceRequests = () => {
                         <button
                           onClick={() => handleAction(req._id, 'Rejected')}
                           disabled={actionLoading}
-                          className="px-2.5 py-1.5 rounded bg-red-500 hover:bg-red-650 text-white font-bold text-xs inline-flex items-center space-x-1 shadow-sm transition-all disabled:opacity-50"
+                          className="px-2.5 py-1.5 rounded bg-red-500 hover:bg-red-600 text-white font-bold text-xs inline-flex items-center space-x-1 shadow-sm transition-all disabled:opacity-50"
                         >
                           <FiX />
                           <span>Reject</span>
